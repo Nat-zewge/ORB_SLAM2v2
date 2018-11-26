@@ -54,12 +54,31 @@ public:
     ros::Publisher kf_publisher;
     ros::Publisher kf_stamped_publisher;
     ros::Publisher Odom_pub;
+
+    // /odom    
+    ros::Publisher kf_publisher_odom;
+    ros::Publisher kf_stamped_publisher_odom;  
+
+    //TF odom->map
+    ros::Publisher kf_publisher_om;
+    ros::Publisher kf_stamped_publisher_om;   
+
+
     tf::TransformBroadcaster* br;
 
 public:
     ImageGrabber(ORB_SLAM2::System* pSLAM, ros::NodeHandle nh, tf::TransformBroadcaster* _br):mpSLAM(pSLAM){
         kf_publisher = nh.advertise<geometry_msgs::Pose>("/orb_slam/keyframe_optimized", 10);
         kf_stamped_publisher = nh.advertise<geometry_msgs::PoseStamped>("/orb_slam/keyframe_stamped_optimized", 10);
+        
+
+        //odom
+        kf_publisher_odom = nh.advertise<geometry_msgs::Pose>("/orb_slam_odom/keyframe_optimized_odom", 10);
+        kf_stamped_publisher_odom = nh.advertise<geometry_msgs::PoseStamped>("/orb_slam_odom/keyframe_stamped_optimized_odom", 10);
+        //TF odom->map
+        kf_publisher_om = nh.advertise<geometry_msgs::Pose>("/orb_slam_om/keyframe_optimized_om", 10);
+        kf_stamped_publisher_om = nh.advertise<geometry_msgs::PoseStamped>("/orb_slam_om/keyframe_stamped_optimized_om", 10);
+       
         br = _br;
     }
 
@@ -198,8 +217,10 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
     transformCurrent.setOrigin(translation);
     transformCurrent.setRotation(tfqt);
 
-    br->sendTransform(tf::StampedTransform(transformCurrent, ros::Time::now(), "map", "base_link"));
+    br->sendTransform(tf::StampedTransform(transformCurrent, ros::Time::now(), "map", "orb_slam"));
 
+
+    /*
     geometry_msgs::Pose kf_pose;
     tf::poseTFToMsg(transformCurrent, kf_pose);
     kf_publisher.publish(kf_pose);
@@ -210,7 +231,7 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
     kf_pose_stamped.header.frame_id = "map";
     kf_pose_stamped.pose = kf_pose;
     kf_stamped_publisher.publish(kf_pose_stamped);
-
+    */
 
 
     /*geometry_msgs::TransformStamped odom_trans;
@@ -219,7 +240,127 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
     odom_trans.child_frame_id = "camera_link";
     br->sendTransform(odom_trans);
 */
+    //////////////////////////////////////////////////////
+    ///                                                ///
+    ///         /odom frame -> camera frame(pose)      ///
+    ///         date : 2018.11.26                      ///
+    ///                                                ///
+    //////////////////////////////////////////////////////
 
+    // odom 
+    cv::Mat pose_odom = mpSLAM->TrackPoseOdom();
+    //cout << "pose Odom" << poseOdom << endl;
+    if (pose_odom.empty())    return;
+
+    //Quaternion
+    tf::Matrix3x3 tf3d_odom;
+    tf3d_odom.setValue(pose_odom.at<float>(0,0), pose_odom.at<float>(0,1), pose_odom.at<float>(0,2),
+            pose_odom.at<float>(1,0), pose_odom.at<float>(1,1), pose_odom.at<float>(1,2),
+            pose_odom.at<float>(2,0), pose_odom.at<float>(2,1), pose_odom.at<float>(2,2));
+
+    tf::Quaternion tfqt_odom;
+    tf3d_odom.getRotation(tfqt_odom);
+    double aux_odom = tfqt_odom[0];
+        tfqt_odom[0]=-tfqt_odom[2];
+        tfqt_odom[2]=tfqt_odom[1];
+        tfqt_odom[1]=aux_odom;
+
+    //Translation for camera
+    tf::Vector3 origin_odom;
+    origin_odom.setValue(pose_odom.at<float>(0,3),pose_odom.at<float>(1,3),pose_odom.at<float>(2,3));
+    //rotate 270deg about x and 270deg about x to get ENU: x forward, y left, z up
+    const tf::Matrix3x3 rotation270degXZ_odom(   0, 1, 0,
+                                            0, 0, 1,
+                                            -1, 0, 0);
+
+    tf::Vector3 translationForCamera_odom = origin_odom * rotation270degXZ_odom;
+
+    //Hamilton (Translation for world)
+    tf::Quaternion quaternionForHamilton_odom(tfqt_odom[3], tfqt_odom[0], tfqt_odom[1], tfqt_odom[2]);
+    tf::Quaternion secondQuaternionForHamilton_odom(tfqt_odom[3], -tfqt_odom[0], -tfqt_odom[1], -tfqt_odom[2]);
+    tf::Quaternion translationHamilton_odom(0, translationForCamera_odom[0], translationForCamera_odom[1], translationForCamera_odom[2]);
+
+    tf::Quaternion translationStepQuat_odom;
+    translationStepQuat_odom = hamiltonProduct(hamiltonProduct(quaternionForHamilton_odom, translationHamilton_odom), secondQuaternionForHamilton_odom);
+
+    tf::Vector3 translation_odom(translationStepQuat_odom[1], translationStepQuat_odom[2], translationStepQuat_odom[3]);
+
+    //Creates transform and populates it with translation and quaternion
+    tf::Transform transformCurrent_odom;
+    transformCurrent_odom.setOrigin(translation_odom);
+    transformCurrent_odom.setRotation(tfqt_odom);
+
+    br->sendTransform(tf::StampedTransform(transformCurrent_odom, ros::Time::now(), "odom", "orb_slam_odom"));
+
+    //////////////////////////////////////////////////////
+    ///                                                ///
+    ///         /odom frame -> /map frame              ///
+    ///                date : 2018.11.26               ///
+    ///                                                ///
+    //////////////////////////////////////////////////////
+
+    // odom frame -> map frame 
+    
+    // variable definition
+    // pose from odom frame: pose_odom
+    // pose from map frame: pose
+    // defined by Tcw  (cv::mat)
+
+    if (pose.empty() || pose_odom.empty())    return;
+
+    //get inverse pose(/map)
+    cv::Mat pose_odom_inverse = cv::Mat::eye(4,4,CV_32F);
+
+    cv::Mat Rcw = pose_odom.rowRange(0,3).colRange(0,3);
+    cv::Mat Rwc = Rcw.t();
+    cv::Mat tcw = pose_odom.rowRange(0,3).col(3);
+    cv::Mat Ow = -Rwc*tcw;
+
+    Rwc.copyTo(pose_odom_inverse.rowRange(0,3).colRange(0,3));
+    Ow.copyTo(pose_odom_inverse.rowRange(0,3).col(3));
+     
+    cv::Mat TF_odom_map=  pose_odom_inverse * pose;
+    
+    //Quaternion
+    tf::Matrix3x3 tf3d_om;
+    tf3d_om.setValue(TF_odom_map.at<float>(0,0), TF_odom_map.at<float>(0,1), TF_odom_map.at<float>(0,2),
+            TF_odom_map.at<float>(1,0), TF_odom_map.at<float>(1,1), TF_odom_map.at<float>(1,2),
+            TF_odom_map.at<float>(2,0), TF_odom_map.at<float>(2,1), TF_odom_map.at<float>(2,2));
+
+    tf::Quaternion tfqt_om;
+    tf3d_om.getRotation(tfqt_om);
+    double aux_om = tfqt_om[0];
+        tfqt_om[0]=-tfqt_om[2];
+        tfqt_om[2]=tfqt_om[1];
+        tfqt_om[1]=aux_om;
+
+    //Translation for camera
+    tf::Vector3 origin_om;
+    origin_om.setValue(TF_odom_map.at<float>(0,3),TF_odom_map.at<float>(1,3),TF_odom_map.at<float>(2,3));
+    //rotate 270deg about x and 270deg about x to get ENU: x forward, y left, z up
+    const tf::Matrix3x3 rotation270degXZ_om(   0, 1, 0,
+                                            0, 0, 1,
+                                            -1, 0, 0);
+
+    tf::Vector3 translationForCamera_om = origin_om * rotation270degXZ_om;
+
+    //Hamilton (Translation for world)
+    tf::Quaternion quaternionForHamilton_om(tfqt_om[3], tfqt_om[0], tfqt_om[1], tfqt_om[2]);
+    tf::Quaternion secondQuaternionForHamilton_om(tfqt_om[3], -tfqt_om[0], -tfqt_om[1], -tfqt_om[2]);
+    tf::Quaternion translationHamilton_om(0, translationForCamera_om[0], translationForCamera_om[1], translationForCamera_om[2]);
+
+    tf::Quaternion translationStepQuat_om;
+    translationStepQuat_om = hamiltonProduct(hamiltonProduct(quaternionForHamilton_om, translationHamilton_om), secondQuaternionForHamilton_om);
+
+    tf::Vector3 translation_om(translationStepQuat_om[1], translationStepQuat_om[2], translationStepQuat_om[3]);
+
+    
+    //Creates transform and populates it with translation and quaternion
+    tf::Transform transformCurrent_om;
+    transformCurrent_om.setOrigin(translation_om);
+    transformCurrent_om.setRotation(tfqt_om);
+
+    br->sendTransform(tf::StampedTransform(transformCurrent_om, ros::Time::now(), "map", "odom"));
 
 
 }
