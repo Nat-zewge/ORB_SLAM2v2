@@ -292,6 +292,14 @@ cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const
     return Tcw;
 }
 
+// /odom
+cv::Mat System::TrackPoseOdom()
+{
+    // get pose reference frame : odom
+    return mpTracker->mPosefromOdomFrame.mTcw;
+
+}
+
 cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const double &timestamp)
 {
     if(mSensor!=RGBD)

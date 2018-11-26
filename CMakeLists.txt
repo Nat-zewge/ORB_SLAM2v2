@@ -41,10 +41,6 @@ else()
    message(FATAL_ERROR "The compiler ${CMAKE_CXX_COMPILER} has no C++11 support. Please use a different C++ compiler.")
 endif()
 
-
-
-
-
 LIST(APPEND CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake_modules)
 
 find_package(OpenCV 3.0 QUIET)
@@ -61,6 +57,8 @@ find_package(Pangolin REQUIRED)
 find_package(PCL 1.7 REQUIRED)
 find_package(octomap REQUIRED)
 
+ADD_SUBDIRECTORY(Thirdparty/g2o)
+ADD_SUBDIRECTORY(Thirdparty/DBoW2)
 
 catkin_package(
 #  INCLUDE_DIRS include
@@ -113,7 +111,7 @@ ${catkin_LIBRARIES}
 ${OpenCV_LIBS}
 ${EIGEN3_LIBS}
 ${Pangolin_LIBRARIES}
-${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
+${CATKIN_DEVEL_PREFIX}/lib/libDBoW2.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
 ${PCL_LIBRARIES}
 ${OCTOMAP_LIBRARIES}
@@ -151,7 +149,7 @@ ${catkin_LIBRARIES}
 ${OpenCV_LIBS}
 ${EIGEN3_LIBS}
 ${Pangolin_LIBRARIES}
-${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
+${CATKIN_DEVEL_PREFIX}/lib/libDBoW2.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
 ${PCL_LIBRARIES}
 ${OCTOMAP_LIBRARIES}
@@ -189,7 +187,7 @@ ${catkin_LIBRARIES}
 ${OpenCV_LIBS}
 ${EIGEN3_LIBS}
 ${Pangolin_LIBRARIES}
-${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
+${CATKIN_DEVEL_PREFIX}/lib/libDBoW2.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
 ${PCL_LIBRARIES}
 ${OCTOMAP_LIBRARIES}
