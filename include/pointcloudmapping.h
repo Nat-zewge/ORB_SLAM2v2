@@ -45,7 +45,7 @@ public:
     void insertKeyFrame( KeyFrame* kf, cv::Mat& color, cv::Mat& depth );
     void shutdown();
     void viewer();
-    void test();
+    void saveOctomap();
     
 protected:
     PointCloud::Ptr generatePointCloud(KeyFrame* kf, cv::Mat& color, cv::Mat& depth);

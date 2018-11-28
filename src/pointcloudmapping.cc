@@ -48,7 +48,7 @@ void PointCloudMapping::shutdown()
         shutDownFlag = true;
         keyFrameUpdated.notify_one();
     }
-    PointCloudMapping::test();
+    PointCloudMapping::saveOctomap();
     //viewerThread->join();
 }
 
@@ -100,7 +100,7 @@ pcl::PointCloud< PointCloudMapping::PointT >::Ptr PointCloudMapping::generatePoi
 }
 
 
-void PointCloudMapping::test()
+void PointCloudMapping::saveOctomap()
 {
     for(size_t i=0;i<keyframes.size();i++)// save the optimized pointcloud
     {

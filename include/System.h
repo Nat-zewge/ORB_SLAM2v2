@@ -36,6 +36,7 @@
 #include "ORBVocabulary.h"
 #include "Viewer.h"
 #include "pointcloudmapping.h"//PCL
+#include "ORBParams.h"
 
 #include "BoostArchiver.h"
 // for map file io
@@ -67,6 +68,7 @@ public:
 
     // Initialize the SLAM system. It launches the Local Mapping, Loop Closing and Viewer threads.
     System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor, const bool bUseViewer = true, bool is_save_map_=false);
+    System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor, ORBParams &params, const bool bUseViewer = true);
     System(const string &strVocFile, const string &strSettingsFile, const string &fileName, const eSensor sensor, const bool bUseViewer = true, bool is_save_map_=false);
 
     // Proccess the given stereo frame. Images must be synchronized and rectified.
@@ -77,6 +79,12 @@ public:
     // /odom /get pose reference frame: odom
     cv::Mat TrackPoseOdom();
 
+<<<<<<< HEAD
+=======
+    // Get PoseOdom
+    std::vector<cv::Mat> GetPoseArray();
+
+>>>>>>> d633a55cddfa10731b6aac52cc0f679b2c5d166a
     // Process the given rgbd frame. Depthmap must be registered to the RGB frame.
     // Input image: RGB (CV_8UC3) or grayscale (CV_8U). RGB is converted to grayscale.
     // Input depthmap: Float (CV_32F).
@@ -190,6 +198,9 @@ private:
 
     // point cloud mapping
     shared_ptr<PointCloudMapping>  mpPointCloudMapping;//PCL
+
+    //Params form launch file
+    ORBParams mParams;
 };
 
 }// namespace ORB_SLAM
