@@ -35,6 +35,114 @@ static bool has_suffix(const std::string &str, const std::string &suffix)
 namespace ORB_SLAM2
 {
 
+System::System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor, ORBParams &params,
+               const bool bUseViewer):mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false),
+        mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false), mParams(params)
+{
+    // Output welcome message
+    cout << endl <<
+    "ORB-SLAM2 Copyright (C) 2014-2016 Raul Mur-Artal, University of Zaragoza." << endl <<
+    "This program comes with ABSOLUTELY NO WARRANTY;" << endl  <<
+    "This is free software, and you are welcome to redistribute it" << endl <<
+    "under certain conditions. See LICENSE.txt." << endl << endl;
+
+    cout << "Input sensor was set to: ";
+
+    if(mSensor==MONOCULAR)
+        cout << "Monocular" << endl;
+    else if(mSensor==STEREO)
+        cout << "Stereo" << endl;
+    else if(mSensor==RGBD)
+        cout << "RGB-D" << endl;
+
+    //Check settings file
+    cv::FileStorage fsSettings(strSettingsFile.c_str(), cv::FileStorage::READ);
+    if(!fsSettings.isOpened())
+    {
+       cerr << "Failed to open settings file at: " << strSettingsFile << endl;
+       exit(-1);
+    }
+
+    cv::FileNode mapfilen = fsSettings["Map.mapfile"];
+    bool bReuseMap = false;
+    if (!mapfilen.empty())
+    {
+        mapfile = (string)mapfilen;
+    }
+
+    //Load ORB Vocabulary
+    cout << endl << "Loading ORB Vocabulary. This could take a while..." << endl;
+
+    mpVocabulary = new ORBVocabulary();
+    bool bVocLoad = false; // chose loading method based on file extension
+    if (has_suffix(strVocFile, ".txt"))
+        bVocLoad = mpVocabulary->loadFromTextFile(strVocFile);
+    else if(has_suffix(strVocFile, ".bin"))
+        bVocLoad = mpVocabulary->loadFromBinaryFile(strVocFile);
+    else
+        bVocLoad = false;
+    if(!bVocLoad)
+    {
+        cerr << "Wrong path to vocabulary. " << endl;
+        cerr << "Falied to open at: " << strVocFile << endl;
+        exit(-1);
+    }
+    cout << "Vocabulary loaded!" << endl << endl;
+
+
+    //Create KeyFrame Database
+    //Create the Map
+    if (!mapfile.empty() && LoadMap(mapfile))
+    {
+        bReuseMap = true;
+    }
+    else
+    {
+        mpKeyFrameDatabase = new KeyFrameDatabase(mpVocabulary);
+        mpMap = new Map();
+    }
+
+    mpPointCloudMapping = make_shared<PointCloudMapping>(0.1);//PCL,OctoMap
+
+    //Create Drawers. These are used by the Viewer
+    mpFrameDrawer = new FrameDrawer(mpMap, bReuseMap);
+    mpMapDrawer = new MapDrawer(mpMap, strSettingsFile);
+
+    //Initialize the Tracking thread
+    //(it will live in the main thread of execution, the one that called this constructor)
+
+//    mpTracker = new Tracking(this, mpVocabulary, mpFrameDrawer, mpMapDrawer,
+//                             mpMap, mpKeyFrameDatabase, strSettingsFile, mSensor, bReuseMap);
+    mpTracker = new Tracking(this, mpVocabulary, mpFrameDrawer, mpMapDrawer,
+                             mpMap, mpKeyFrameDatabase, strSettingsFile, mSensor, mpPointCloudMapping, bReuseMap);
+
+    //Initialize the Local Mapping thread and launch
+    mpLocalMapper = new LocalMapping(mpMap, mSensor==MONOCULAR);
+    mptLocalMapping = new thread(&ORB_SLAM2::LocalMapping::Run,mpLocalMapper);
+
+    //Initialize the Loop Closing thread and launch
+    mpLoopCloser = new LoopClosing(mpMap, mpKeyFrameDatabase, mpVocabulary, mSensor!=MONOCULAR);
+    mptLoopClosing = new thread(&ORB_SLAM2::LoopClosing::Run, mpLoopCloser);
+
+    //Initialize the Viewer thread and launch
+    if(bUseViewer)
+    {
+        mpViewer = new Viewer(this, mpFrameDrawer,mpMapDrawer,mpTracker,strSettingsFile, bReuseMap);
+        mptViewer = new thread(&Viewer::Run, mpViewer);
+        mpTracker->SetViewer(mpViewer);
+    }
+
+    //Set pointers between threads
+    mpTracker->SetLocalMapper(mpLocalMapper);
+    mpTracker->SetLoopClosing(mpLoopCloser);
+
+    mpLocalMapper->SetTracker(mpTracker);
+    mpLocalMapper->SetLoopCloser(mpLoopCloser);
+
+    mpLoopCloser->SetTracker(mpTracker);
+    mpLoopCloser->SetLocalMapper(mpLocalMapper);
+}
+
 System::System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor,
                const bool bUseViewer, bool is_save_map_):mSensor(sensor), is_save_map(is_save_map_), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false),
         mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false)
@@ -292,6 +400,14 @@ cv::Mat System::TrackStereo(const cv::Mat &imLeft, const cv::Mat &imRight, const
     return Tcw;
 }
 
+// /odom
+cv::Mat System::TrackPoseOdom()
+{
+    // get pose reference frame : odom
+    return mpTracker->mPosefromOdomFrame.mTcw;
+
+}
+
 cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const double &timestamp)
 {
     if(mSensor!=RGBD)
@@ -439,7 +555,9 @@ void System::Shutdown()
         }
     }
 
-    mpPointCloudMapping->shutdown();//PCL
+    if(mParams.getBuildOctomap()){
+        mpPointCloudMapping->shutdown();
+    }
 
     // Wait until all thread have effectively stopped
     while(!mpLocalMapper->isFinished() || !mpLoopCloser->isFinished() || mpLoopCloser->isRunningGBA())
@@ -603,6 +721,44 @@ void System::SaveTrajectoryKITTI(const string &filename)
     f.close();
     cout << endl << "trajectory saved!" << endl;
 }
+
+std::vector<cv::Mat> System::GetPoseArray()
+{
+   // cout << endl << "Get PoseArray" << endl;
+    // get keyframe array
+    // extract pose array from key frame pose array
+    
+  
+    vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
+    sort(vpKFs.begin(),vpKFs.end(),KeyFrame::lId);
+
+    vector<cv::Mat> Tcw;
+
+    for(size_t i=0; i<vpKFs.size(); i++)
+    {
+        KeyFrame* pKF = vpKFs[i];
+
+       // pKF->SetPose(pKF->GetPose()*Two);
+
+        if(pKF->isBad())
+            continue;
+
+/*
+        cv::Mat R = pKF->GetRotation().t();
+        vector<float> q = Converter::toQuaternion(R);
+        cv::Mat t = pKF->GetCameraCenter();
+  */
+            Tcw.push_back(pKF->GetPose().clone());
+
+
+        // put pose value on PoseArray
+    }
+
+    // return pose array
+    return Tcw;
+}
+ 
+
 
 int System::GetTrackingState()
 {

@@ -162,6 +162,8 @@ public:
 
     // Camera pose.
     cv::Mat mTcw;
+    // /odom
+    cv::Mat mTwc;
 
     // Current and Next Frame id.
     static long unsigned int nNextId;
