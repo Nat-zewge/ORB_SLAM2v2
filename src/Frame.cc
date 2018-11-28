@@ -264,6 +264,21 @@ void Frame::UpdatePoseMatrices()
     mRwc = mRcw.t();
     mtcw = mTcw.rowRange(0,3).col(3);
     mOw = -mRcw.t()*mtcw;
+
+    // /odom
+    mTwc = cv::Mat::eye(4,4,mTcw.type());
+
+    // get Tcw^-1 process
+    cv::Mat Rcw = mTcw.rowRange(0,3).colRange(0,3);
+    cv::Mat tcw = mTcw.rowRange(0,3).col(3);
+    cv::Mat Rwc = mRcw.t();
+    cv::Mat Ow = -Rwc*tcw;
+
+    // get Tcw^-1 process
+    Rwc.copyTo(mTwc.rowRange(0,3).colRange(0,3));
+    Ow.copyTo(mTwc.rowRange(0,3).col(3));
+
+
 }
 
 bool Frame::isInFrustum(MapPoint *pMP, float viewingCosLimit)

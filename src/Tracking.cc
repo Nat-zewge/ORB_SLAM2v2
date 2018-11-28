@@ -523,6 +523,35 @@ void Tracking::Track()
         else
             mState=LOST;
 
+
+
+        //////////////////////////////////////////////////////
+        ///                                                ///
+        ///         // pose - /odom frame                  ///
+        ///             date:2018.11.26                    ///
+        ///                                                ///
+        //////////////////////////////////////////////////////
+
+        // Todo: initialize mPosefromOdomFrame and mLastPosefromOdomFrame 
+        if(mPosefromOdomFrame.mTcw.empty() ){
+            // very first pose /odom
+            cout << "set initial mPosefromOdomFrame "<<endl;
+            
+            // initialize last and current frame value
+            mPosefromOdomFrame.SetPose(mCurrentFrame.mTcw);
+            mLastPosefromOdomFrame.SetPose(mLastFrame.mTcw); // 
+        }
+        // cv::mat Null exception
+        else if(!mCurrentFrame.mTcw.empty() && !mLastFrame.mTcw.empty()  ){
+
+            // Get pose diff  
+            mPoseDiff.SetPose(mLastFrame.mTcw * mCurrentFrame.mTwc);
+            mPosefromOdomFrame.SetPose(mPoseDiff.mTwc * mLastPosefromOdomFrame.mTcw);
+            // accumulate currrent frame
+            mLastPosefromOdomFrame.SetPose(mPosefromOdomFrame.mTcw); // 
+        }
+
+
         // Update drawer
         mpFrameDrawer->Update(this);
 

@@ -104,6 +104,14 @@ public:
     cv::Mat mImRGB;
     cv::Mat mImDepth;
 
+    // Frame /odom
+    //current frame, reference frame : odom
+    Frame mPosefromOdomFrame;
+    //last frame, reference frame : odom
+    Frame mLastPosefromOdomFrame;
+    //Diff between current and last pose, reference frame : odom
+    Frame mPoseDiff;
+
     // Initialization Variables (Monocular)
     std::vector<int> mvIniLastMatches;
     std::vector<int> mvIniMatches;

@@ -105,6 +105,7 @@ src/Sim3Solver.cc
 src/Initializer.cc
 src/Viewer.cc
 src/pointcloudmapping.cc
+src/ORBParams.cc
 
 
 )
@@ -142,7 +143,7 @@ src/Sim3Solver.cc
 src/Initializer.cc
 src/Viewer.cc
 src/pointcloudmapping.cc
-
+src/ORBParams.cc
 
 
 )
@@ -179,7 +180,7 @@ src/Sim3Solver.cc
 src/Initializer.cc
 src/Viewer.cc
 src/pointcloudmapping.cc
-
+src/ORBParams.cc
 
 
 
