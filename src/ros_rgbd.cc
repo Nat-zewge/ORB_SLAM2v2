@@ -217,7 +217,7 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
     transformCurrent.setOrigin(translation);
     transformCurrent.setRotation(tfqt);
 
-    br->sendTransform(tf::StampedTransform(transformCurrent, ros::Time::now(), "map", "orb_slam"));
+    br->sendTransform(tf::StampedTransform(transformCurrent, ros::Time::now(), "map", "orb_map_pose"));
 
 
     /*
