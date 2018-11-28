@@ -111,7 +111,7 @@ ${catkin_LIBRARIES}
 ${OpenCV_LIBS}
 ${EIGEN3_LIBS}
 ${Pangolin_LIBRARIES}
-${CATKIN_DEVEL_PREFIX}/lib/libDBoW2.so
+${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
 ${PCL_LIBRARIES}
 ${OCTOMAP_LIBRARIES}
@@ -149,7 +149,7 @@ ${catkin_LIBRARIES}
 ${OpenCV_LIBS}
 ${EIGEN3_LIBS}
 ${Pangolin_LIBRARIES}
-${CATKIN_DEVEL_PREFIX}/lib/libDBoW2.so
+${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
 ${PCL_LIBRARIES}
 ${OCTOMAP_LIBRARIES}
@@ -187,7 +187,7 @@ ${catkin_LIBRARIES}
 ${OpenCV_LIBS}
 ${EIGEN3_LIBS}
 ${Pangolin_LIBRARIES}
-${CATKIN_DEVEL_PREFIX}/lib/libDBoW2.so
+${PROJECT_SOURCE_DIR}/Thirdparty/DBoW2/lib/libDBoW2.so
 ${PROJECT_SOURCE_DIR}/Thirdparty/g2o/lib/libg2o.so
 ${PCL_LIBRARIES}
 ${OCTOMAP_LIBRARIES}
