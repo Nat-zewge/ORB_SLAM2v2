@@ -13,6 +13,8 @@ find_package(catkin REQUIRED COMPONENTS
   roscpp
   sensor_msgs
   tf
+  std_msgs
+  std_srvs
 )
 
 IF(NOT CMAKE_BUILD_TYPE)
@@ -56,6 +58,28 @@ if(NOT OpenCV_FOUND)
 endif()
 
 
+# add messagefiles
+add_message_files(
+  FILES 
+  Link.msg  
+  PoseGraph.msg	
+)
+
+
+# add service
+add_service_files(FILES MapGraph.srv)
+
+
+
+generate_messages(
+DEPENDENCIES 
+std_msgs
+geometry_msgs
+sensor_msgs
+)
+
+
+
 find_package(Eigen3 3.1.0 REQUIRED)
 find_package(Pangolin REQUIRED)
 find_package(PCL 1.7 REQUIRED)
@@ -67,6 +91,8 @@ catkin_package(
 #  LIBRARIES aadet
 #  CATKIN_DEPENDS roscpp rospy std_msgs
 #  DEPENDS system_lib
+  CATKIN_DEPENDS
+    std_srvs
 )
 
 include_directories(

@@ -20,8 +20,8 @@
 	<!--arg name="settings_path" value="$(arg settings_path)"/-->
 	<param name="publish_tf"		type="bool"	value="true"/>
 	<param name="publish_odom	"	type="bool"	value="true"/>
-	<param name="mapping"			type="bool"	value="false"/>
-	<param name="build_octomap"		type="bool"	value="false"/>
+	<param name="mapping"			type="bool"	value="true"/>
+	<param name="build_octomap"		type="bool"	value="true"/>
 	
 	
 </node>     
