@@ -35,6 +35,7 @@
 #include "include/System.h"
 #include "ORBParams.h"
 
+
 #include <Converter.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -43,10 +44,45 @@
 #include <tf/transform_datatypes.h>
 #include <nav_msgs/Odometry.h>
 
+#include <ORB_SLAM2v2/MapGraph.h>
+#include <ORB_SLAM2v2/PoseGraph.h>
+#include <ORB_SLAM2v2/Link.h>
+
 using namespace std;
 
 tf::Quaternion hamiltonProduct(tf::Quaternion a, tf::Quaternion b);
 tf::Transform GetPoseFromWorld(cv::Mat pose);
+bool GetPoseGraphSrv(ORB_SLAM2v2::MapGraph::Request &req, ORB_SLAM2v2::MapGraph::Response &res);
+
+
+   
+
+bool GetPoseGraphSrv(ORB_SLAM2v2::MapGraph::Request &req, ORB_SLAM2v2::MapGraph::Response &res){
+    ROS_INFO("Get PoseGraph request");
+    ////////////////// **** Goal ****//////////////////////// //
+    // aPoseArray data -> ORB_SLAM2v2::MapGraph::Response &res//
+    // aPoseArray is in ImageGrabber::GrabRGBD function below //
+    ////////////////////////////////////////////////////////////
+
+    // see ORBSLAM2v2/srv/MapGraph.srv
+    // see ORBSLAM2v2/msg/PoseGraph.msg, Link.msg
+
+    // req = (empty)
+    // res = MapGraph on ROS service
+    // put values(header,poses, etc..) on MapGraph parameter
+    
+
+    /*
+    res.Data.header = mMapGraph.header;
+    res.Data.posesId.push_back(mMapGraph.Data.posesId);
+    res.Data.poses.push_back(mMapGraph.Data.poses);
+    res.Data.links.push_back(mMapGraph.Data.links);
+    */
+
+
+    return true;
+}
+
 
 class ImageGrabber
 {
@@ -71,8 +107,12 @@ public:
     ros::Publisher poseArrayPub;
     ros::Publisher VisualOdometryPub;
 
+    ros::ServiceServer PoseGraphSrv;
+
     bool publish_tf=false;
     bool publish_odom=false;
+
+
 
 public:
     ImageGrabber(ORB_SLAM2::System* pSLAM, ros::NodeHandle nh, tf::TransformBroadcaster* _br):mpSLAM(pSLAM){
@@ -88,6 +128,9 @@ public:
         kf_publisher_om = nh.advertise<geometry_msgs::Pose>("/orb_slam_om/keyframe_optimized_om", 10);
         kf_stamped_publisher_om = nh.advertise<geometry_msgs::PoseStamped>("/orb_slam_om/keyframe_stamped_optimized_om", 10);
        
+        //service Pose-graph
+        PoseGraphSrv = nh.advertiseService("get_graph", GetPoseGraphSrv);
+
         br = _br;
 
         nh.param("publish_tf", publish_tf, publish_tf);
@@ -103,6 +146,7 @@ int main(int argc, char **argv)
     ros::start();
     ros::NodeHandle nh("~");
     tf::TransformBroadcaster br;
+
 
      if(argc != 3)
      {
@@ -237,7 +281,7 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
     if (pose_odom.empty())    return;
     tf::Transform transformCurrent_odom = GetPoseFromWorld(pose_odom);
 
-    br->sendTransform(tf::StampedTransform(transformCurrent_odom, ros::Time::now(), "odom", "orb_slam_odom"));
+    br->sendTransform(tf::StampedTransform(transformCurrent_odom, ros::Time::now(), "odom", "base_link"));
 
     //////////////////////////////////////////////////////
     ///                                                ///
@@ -279,7 +323,8 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
     ///////////////  Date : 2018.11.27      ///////////////////////
     ///////////////////////////////////////////////////////////////
 
-    geometry_msgs::PoseArray aPoseArray;
+     geometry_msgs::PoseArray aPoseArray;
+
     vector<cv::Mat> TcwArray = mpSLAM->GetPoseArray();
     
     geometry_msgs::Pose posetmp;
@@ -289,15 +334,24 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
         tf::Transform tfPoseArray= GetPoseFromWorld(TcwArray[i]);
 
         geometry_msgs::Pose PoseArrayTmp;
+        
         tf::poseTFToMsg(tfPoseArray, PoseArrayTmp);
 
-        aPoseArray.poses.push_back(PoseArrayTmp);
+       aPoseArray.poses.push_back(PoseArrayTmp);
+      
+       /*
+         mMapGraph.Data.posesId[i].push_back(i);
+         mMapGraph.Data.poses.push_back(PoseArrayTmp);
+         mMapGraph.Data.links[i].fromId = i ;
+         mMapGraph.Data.links[i].toId = i+1;
+       */
     }
 
     // define header
     aPoseArray.header.stamp = ros::Time::now();
     aPoseArray.header.frame_id = "/map";
-    
+   // mMapGraph.header.stamp = ros::Time::now();
+   // mMapGraph.header.frame_id = "/map";
     // Get aPoseArray value
 
     poseArrayPub.publish(aPoseArray);
@@ -315,7 +369,7 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
     VisualOdometry.header.stamp = ros::Time::now();
     VisualOdometry.header.frame_id = "/odom";
 
-    VisualOdometry.child_frame_id = "/orb_slam_odom";
+    VisualOdometry.child_frame_id = "/base_link";
 
     geometry_msgs::Pose VisualOdometryPoseTmp;
     tf::poseTFToMsg(transformCurrent_odom, VisualOdometryPoseTmp);
@@ -327,8 +381,6 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
     VisualOdometry.pose.pose.orientation.y = VisualOdometryPoseTmp.orientation.y;
     VisualOdometry.pose.pose.orientation.z = VisualOdometryPoseTmp.orientation.z;
     VisualOdometry.pose.pose.orientation.w = VisualOdometryPoseTmp.orientation.w;
-    
-    //VisualOdometry.twist = ;
 
 	if(publish_odom){
     VisualOdometryPub.publish(VisualOdometry);
