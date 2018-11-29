@@ -136,6 +136,10 @@ public:
     // Save/Load functions
     void SaveMap(const string &filename);
     bool LoadMap(const string &filename);
+    bool LoadMap();
+    
+    void RequestSaveMap();
+    void RequestLoadMap();
 
 private:
 
@@ -186,6 +190,9 @@ private:
     std::mutex mMutexMode;
     bool mbActivateLocalizationMode;
     bool mbDeactivateLocalizationMode;
+    bool mbRequestMapSave;
+    bool mbRequestMapLoad;
+    bool mbSaveImages;
 
     // Tracking state
     int mTrackingState;

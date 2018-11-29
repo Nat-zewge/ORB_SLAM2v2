@@ -538,8 +538,12 @@ void Tracking::Track()
             cout << "set initial mPosefromOdomFrame "<<endl;
             
             // initialize last and current frame value
-            mPosefromOdomFrame.SetPose(mCurrentFrame.mTcw);
-            mLastPosefromOdomFrame.SetPose(mLastFrame.mTcw); // 
+            if(!mCurrentFrame.mTcw.empty() && !mLastFrame.mTcw.empty())
+            {
+               mPosefromOdomFrame.SetPose(mCurrentFrame.mTcw);
+              mLastPosefromOdomFrame.SetPose(mLastFrame.mTcw); // 
+            }
+
         }
         // cv::mat Null exception
         else if(!mCurrentFrame.mTcw.empty() && !mLastFrame.mTcw.empty()  ){
@@ -1731,6 +1735,10 @@ void Tracking::InformOnlyTracking(const bool &flag)
     mbOnlyTracking = flag;
 }
 
-
+void Tracking::getMap(Map *pMap)
+{
+    mpMap = pMap;
+    mState = LOST;
+}
 
 } //namespace ORB_SLAM

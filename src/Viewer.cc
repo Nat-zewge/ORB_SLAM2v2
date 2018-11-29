@@ -73,7 +73,7 @@ void Viewer::Run()
     pangolin::Var<bool> menuLocalizationMode("menu.Localization Mode",mbReuseMap,true);
     pangolin::Var<bool> menuReset("menu.Reset",false,false);
     pangolin::Var<bool> menuSave("menu.Save",false,false);
-//    pangolin::Var<bool> menuLoad("menu.Load",false,false);
+    pangolin::Var<bool> menuLoad("menu.Load",false,false);
 
     // Define Camera Render Object (for view / scene browsing)
     pangolin::OpenGlRenderState s_cam(
@@ -157,29 +157,24 @@ void Viewer::Run()
 
         if(menuSave){
             std::string filePath = "orb_test";
-            mpSystem->SaveMap(filePath);
+            mpSystem->RequestSaveMap();
             menuSave = false;
         }
-/*
-        if(menuLoad){
-            FILE *pipe = popen("zenity --file-selection", "r");
-            if(!pipe){
-                cout << "File name error!" << endl;
-                continue;
-            }
+      if(menuLoad){
+            menuShowGraph = true;
+            menuShowKeyFrames = true;
+            menuShowPoints = true;
+            menuLocalizationMode = true;
+            if(!bLocalizationMode)
+                mpSystem->ActivateLocalizationMode();
+            bLocalizationMode = true;
+            bFollow = true;
+            menuFollowCamera = true;
             char line[1024];
-            std::string filePath;
-
-            fgets(line, 1024, pipe);
-            filePath += line;
-            filePath[filePath.length()-1] = '\0';
-            pclose(pipe);
-
-            //system("zenity --file-selection");
-            //mpSystem->LoadMap(filePath);
+            mpSystem->RequestLoadMap();
             menuLoad = false;
         }
-*/
+
         if(Stop())
         {
             while(isStopped())
@@ -254,6 +249,12 @@ void Viewer::Release()
 {
     unique_lock<mutex> lock(mMutexStop);
     mbStopped = false;
+}
+
+void Viewer::setLoadedMap(Tracking *pTracking){
+    unique_lock<mutex> lock(mMutexStop);
+    mpTracker = pTracking;
+
 }
 
 }

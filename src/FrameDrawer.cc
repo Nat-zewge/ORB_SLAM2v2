@@ -203,4 +203,10 @@ void FrameDrawer::Update(Tracking *pTracker)
     mState=static_cast<int>(pTracker->mLastProcessedState);
 }
 
+void FrameDrawer::getMap(Map* pMap)
+{
+    mpMap = pMap;
+    mState=Tracking::LOST;
+}
+
 } //namespace ORB_SLAM

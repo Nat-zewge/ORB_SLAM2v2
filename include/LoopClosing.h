@@ -80,6 +80,8 @@ public:
 
     bool isFinished();
 
+    void getMap(Map *pMap);
+
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
 protected:

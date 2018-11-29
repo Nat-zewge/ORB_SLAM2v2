@@ -36,6 +36,13 @@ PointCloudMapping::PointCloudMapping(double resolution_)
     //viewerThread = make_shared<thread>( bind(&PointCloudMapping::viewer, this ) );
 }
 
+void PointCloudMapping::Reset()
+{
+    keyframes.clear();
+    colorImgs.clear();
+    depthImgs.clear();
+}
+
 void PointCloudMapping::shutdown()
 {
     /****************************************************/
@@ -102,6 +109,7 @@ pcl::PointCloud< PointCloudMapping::PointT >::Ptr PointCloudMapping::generatePoi
 
 void PointCloudMapping::saveOctomap()
 {
+    pcl::PointCloud<pcl::PointXYZRGBA> loadedCloud;
     for(size_t i=0;i<keyframes.size();i++)// save the optimized pointcloud
     {
         //cout<<"keyframe "<<i<<" ..."<<endl;
@@ -120,6 +128,18 @@ void PointCloudMapping::saveOctomap()
     /***********************************************************/
     //pcl::PointCloud<pcl::PointXYZRGBA> cloudt;
     //pcl::io::loadPCDFile<pcl::PointXYZRGBA> ( "optimized_pointcloud.pcd", cloudt );
+
+    ifstream ifs("optimized_pointcloud.pcd");
+
+    if(ifs.is_open()){
+        ifs.close();
+        pcl::io::loadPCDFile<pcl::PointXYZRGBA> ( "optimized_pointcloud.pcd", loadedCloud);
+        *globalMap += loadedCloud;
+    }
+
+    pcl::io::savePCDFileBinary ( "optimized_pointcloud.pcd", *globalMap );
+    cout<<"Save point cloud file successfully!"<<endl;
+
     cout << "copy data into octomap..." << endl;
 
 
@@ -178,7 +198,7 @@ void PointCloudMapping::saveOctomap()
 
 */
     // Create an octree object，set resolution as 0.03.
-    octomap::OcTree tree( 0.005 );
+    octomap::OcTree tree( 0.1 );
     for (auto p:transformed_cloud->points)
     {
         // Insert the point of Point Cloud to octomap

@@ -23,6 +23,7 @@
 #include<algorithm>
 #include<fstream>
 #include<chrono>
+#include<unistd.h>
 
 #include<ros/ros.h>
 #include <cv_bridge/cv_bridge.h>
@@ -160,13 +161,30 @@ int main(int argc, char **argv)
     bool publish_odom = false;
     bool mapping = false;
     bool build_octomap = true;
+    string mapBinaryPath = "/map.bin";
+    string mapOctomapPath = "/global_octomap.bt";
+    string mapPCLPath = "/optimized_pointcloud.pcd";
+    string homeEnv;
+
+    char pwd[1024];
+    getcwd(pwd, 1024);
+    mapBinaryPath = pwd + mapBinaryPath;
+    mapOctomapPath = pwd + mapOctomapPath;
+    mapPCLPath = pwd + mapPCLPath;
 
     nh.param("publish_tf", publish_tf, publish_tf);
     nh.param("publish_odom", publish_odom, publish_odom);
     nh.param("mapping", mapping, mapping);
     nh.param("build_octomap", build_octomap, build_octomap);
+    nh.param("mapBinaryPath", mapBinaryPath, mapBinaryPath);
+    nh.param("mapOctomapPath", mapOctomapPath, mapOctomapPath);
+    nh.param("mapPCLPath", mapPCLPath, mapPCLPath);
+    
 
     ORBParams params(publish_tf, publish_odom, mapping, build_octomap);
+    params.setMapBinaryPath(mapBinaryPath.c_str());
+    params.setMapOctomapPath(mapOctomapPath.c_str());
+    params.setMapPCLPath(mapPCLPath.c_str());
 
     string topic_rgb = "/camera/rgb/image_raw";
     string topic_depth = "/camera/depth/image";
@@ -381,6 +399,8 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
     VisualOdometry.pose.pose.orientation.y = VisualOdometryPoseTmp.orientation.y;
     VisualOdometry.pose.pose.orientation.z = VisualOdometryPoseTmp.orientation.z;
     VisualOdometry.pose.pose.orientation.w = VisualOdometryPoseTmp.orientation.w;
+
+    //VisualOdometry.pose.covariance = 0.01;
 
 	if(publish_odom){
     VisualOdometryPub.publish(VisualOdometry);

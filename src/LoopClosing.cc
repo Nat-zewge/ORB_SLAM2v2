@@ -772,5 +772,10 @@ bool LoopClosing::isFinished()
     return mbFinished;
 }
 
+void LoopClosing::getMap(Map *pMap)
+{
+    mpMap = pMap;
+}
+
 
 } //namespace ORB_SLAM

@@ -130,6 +130,7 @@ public:
     bool mbOnlyTracking;
 
     void Reset();
+    void getMap(Map *pMap);
 
 protected:
 
