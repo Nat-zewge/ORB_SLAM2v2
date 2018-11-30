@@ -37,7 +37,7 @@ namespace ORB_SLAM2
 
 System::System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor, ORBParams &params,
                const bool bUseViewer):mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false),
-        mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false), mParams(params)
+        mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false), mParams(params), mbRequestMapSave(false), mbSaveImages(false), mbRequestMapLoad(false)
 {
     // Output welcome message
     cout << endl <<
@@ -63,12 +63,15 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
        exit(-1);
     }
 
-    cv::FileNode mapfilen = fsSettings["Map.mapfile"];
+    //cv::FileNode mapfilen = fsSettings["Map.mapfile"];
     bool bReuseMap = false;
+    /*
     if (!mapfilen.empty())
     {
         mapfile = (string)mapfilen;
     }
+    */
+    mapfile = string(params.getMapBinaryPath());
 
     //Load ORB Vocabulary
     cout << endl << "Loading ORB Vocabulary. This could take a while..." << endl;
@@ -89,6 +92,7 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     }
     cout << "Vocabulary loaded!" << endl << endl;
 
+    mpPointCloudMapping = make_shared<PointCloudMapping>(0.1);//PCL,OctoMap
 
     //Create KeyFrame Database
     //Create the Map
@@ -101,8 +105,6 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
         mpKeyFrameDatabase = new KeyFrameDatabase(mpVocabulary);
         mpMap = new Map();
     }
-
-    mpPointCloudMapping = make_shared<PointCloudMapping>(0.1);//PCL,OctoMap
 
     //Create Drawers. These are used by the Viewer
     mpFrameDrawer = new FrameDrawer(mpMap, bReuseMap);
@@ -300,6 +302,9 @@ mSensor(sensor), is_save_map(is_save_map_), mpViewer(static_cast<Viewer*>(NULL))
     }
     cout << "Vocabulary loaded!" << endl << endl;
 
+
+    mpPointCloudMapping = make_shared<PointCloudMapping>(0.1);//PCL,OctoMap
+
     bool bReuseMap = false;
     //Create KeyFrame Database
     //Create the Map
@@ -456,6 +461,17 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const doub
     mTrackingState = mpTracker->mState;
     mTrackedMapPoints = mpTracker->mCurrentFrame.mvpMapPoints;
     mTrackedKeyPointsUn = mpTracker->mCurrentFrame.mvKeysUn;
+
+    if(mbRequestMapSave){
+        SaveMap("");
+        mbRequestMapSave = false;
+    }
+
+    if(mbRequestMapLoad){
+        LoadMap();
+        mbRequestMapLoad = false;
+    }
+
     return Tcw;
 }
 
@@ -497,6 +513,7 @@ cv::Mat System::TrackMonocular(const cv::Mat &im, const double &timestamp)
     if(mbReset)
     {
         mpTracker->Reset();
+        mpPointCloudMapping->Reset();//PCL
         mbReset = false;
     }
     }
@@ -787,15 +804,18 @@ void System::SaveMap(const string &filename)
         exit(-1);
     }
 
-    unique_lock<mutex> lock2(mMutexState);
-    cout << "Saving Mapfile: " << mapfile << std::flush;
-    boost::archive::binary_oarchive oa(out, boost::archive::no_header);
-    oa << mpMap;
-    oa << mpKeyFrameDatabase;
+    {
+        unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
+        cout << "Saving Mapfile: " << mapfile << std::flush;
+        std::this_thread::sleep_for(std::chrono::microseconds(2000));
+        boost::archive::binary_oarchive oa(out, boost::archive::no_header);
+        oa << mpMap;
+        oa << mpKeyFrameDatabase;
+    }
     cout << " ...done" << std::endl;
     out.close();
 
-    std:string cmd = "cp "+mapfile+" copy_"+mapfile;
+    std:string cmd = "cp "+mapfile+" "+mapfile+".copy";
     int ld = system(cmd.c_str());
 }
 bool System::LoadMap(const string &filename)
@@ -826,5 +846,59 @@ bool System::LoadMap(const string &filename)
     in.close();
     return true;
 }
+
+bool System::LoadMap(){
+    Map* oldMap = mpMap;
+    {
+        unique_lock<mutex> lock(mMutexReset);
+        mpPointCloudMapping->Reset();//PCL
+    }
+
+    std::ifstream in(mapfile, std::ios_base::binary);
+    if (!in)
+    {
+        cerr << "Cannot Open Mapfile: " << mapfile << " , You need create it first!" << std::endl;
+        return false;
+    }
+
+    boost::archive::binary_iarchive ia(in, boost::archive::no_header);
+    ia >> mpMap;
+    ia >> mpKeyFrameDatabase;
+
+    mpKeyFrameDatabase->SetORBvocabulary(mpVocabulary);
+    cout << " ...done" << std::endl;
+    cout << "Map Reconstructing" << flush;
+    vector<ORB_SLAM2::KeyFrame*> vpKFS = mpMap->GetAllKeyFrames();
+    unsigned long mnFrameId = 0;
+    for (auto it:vpKFS) {
+        it->SetORBvocabulary(mpVocabulary);
+        it->ComputeBoW();
+        if (it->mnFrameId > mnFrameId)
+            mnFrameId = it->mnFrameId;
+    }
+    Frame::nNextId = mnFrameId;
+
+    cout << " ...done" << endl;
+    in.close();
+
+    mpFrameDrawer->getMap(mpMap);
+    mpMapDrawer->getMap(mpMap);
+    mpTracker->getMap(mpMap);
+    mpLocalMapper->getMap(mpMap);
+    mpLoopCloser->getMap(mpMap);
+    
+
+    delete oldMap;
+
+    return true;
+}
+
+void System::RequestSaveMap(){
+    mbRequestMapSave = true;
+}
+void System::RequestLoadMap(){
+    mbRequestMapLoad = true;
+}
+
 
 } //namespace ORB_SLAM

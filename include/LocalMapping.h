@@ -72,6 +72,8 @@ public:
         return mlNewKeyFrames.size();
     }
 
+    void getMap(Map *pMap);
+
 protected:
 
     bool CheckNewKeyFrames();
