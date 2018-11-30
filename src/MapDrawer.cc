@@ -261,4 +261,9 @@ void MapDrawer::GetCurrentOpenGLCameraMatrix(pangolin::OpenGlMatrix &M)
         M.SetIdentity();
 }
 
+void MapDrawer::getMap(Map *pMap)
+{
+    mpMap = pMap;
+}
+
 } //namespace ORB_SLAM

@@ -30,6 +30,15 @@ void ORBParams::setBuildOctomap(bool b){
     build_octomap = b;
 }
 
+
+
+void ORBParams::setMapBinaryPath(const char* m){
+    mapBinaryPath = m;
+}
+void ORBParams::setMapOctomapPath(const char* m){
+    mapOctomapPath = m;
+
+}
 bool ORBParams::getPublishTf(){
     return publish_tf;
 }
@@ -37,11 +46,28 @@ bool ORBParams::getpublishOdom(){
     return publish_odom;
 }
 
+void ORBParams::setMapPCLPath(const char* m){
+    mapPCLPath = m;
+}
+
+
 bool ORBParams::getMapping(){
     return mapping;
 }
 bool ORBParams::getBuildOctomap(){
     return build_octomap;
+}
+
+const char* ORBParams::getMapBinaryPath(){
+    return mapBinaryPath;
+}
+
+const char* ORBParams::getMapOctomapPath(){
+    return mapOctomapPath;
+}
+
+const char* ORBParams::getMapPCLPath(){
+    return mapPCLPath;
 }
 
 }

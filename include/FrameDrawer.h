@@ -45,6 +45,8 @@ public:
     // Update info from the last processed frame.
     void Update(Tracking *pTracker);
 
+    void getMap(Map* pMap);
+
     // Draw last processed frame.
     cv::Mat DrawFrame();
 

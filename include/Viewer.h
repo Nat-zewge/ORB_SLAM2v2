@@ -58,6 +58,8 @@ public:
 
     void Release();
 
+    void setLoadedMap(Tracking *pTracking);
+
 private:
 
     bool Stop();

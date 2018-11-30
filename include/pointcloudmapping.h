@@ -46,6 +46,7 @@ public:
     void shutdown();
     void viewer();
     void saveOctomap();
+    void Reset();
     
 protected:
     PointCloud::Ptr generatePointCloud(KeyFrame* kf, cv::Mat& color, cv::Mat& depth);
