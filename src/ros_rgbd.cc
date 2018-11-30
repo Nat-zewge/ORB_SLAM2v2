@@ -371,7 +371,7 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
    // mMapGraph.header.frame_id = "/map";
     // Get aPoseArray value
 
-    copy_array = aPoseArray;
+    copy_pose_array = aPoseArray;
     poseArrayPub.publish(aPoseArray);
 
 
