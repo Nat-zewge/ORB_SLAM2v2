@@ -52,32 +52,33 @@ using namespace std;
 
 tf::Quaternion hamiltonProduct(tf::Quaternion a, tf::Quaternion b);
 tf::Transform GetPoseFromWorld(cv::Mat pose);
-bool GetPoseGraphSrv(ORB_SLAM2v2::MapGraph::Request &req, ORB_SLAM2v2::MapGraph::Response &res);
-geometry_msgs::PoseArray copy_pose_array;
+geometry_msgs::PoseArray copied_pose_array;
 
    
 
-bool GetPoseGraphSrv(ORB_SLAM2v2::MapGraph::Request &req, ORB_SLAM2v2::MapGraph::Response &res){
+bool GetPoseGraphSrv(ORB_SLAM2v2::MapGraph::Request &req, ORB_SLAM2v2::MapGraph::Response &response){
 
-    ////////////////// **** Goal ****//////////////////////// //
-    // aPoseArray data -> ORB_SLAM2v2::MapGraph::Response &res//
-    // aPoseArray is in ImageGrabber::GrabRGBD function below //
-    ////////////////////////////////////////////////////////////
-    
-    // see ORBSLAM2v2/srv/MapGraph.srv
-    // see ORBSLAM2v2/msg/PoseGraph.msg, Link.msg
-
-    // req = (empty)
-    // res = MapGraph on ROS service
-    // put values(header,poses, etc..) on MapGraph parameter
     
     //test code
     ROS_INFO("callback active");
   
     //get pose array header and pose fields
-    res.Data.header = copy_pose_array.header; 
-    res.Data.poses = copy_pose_array.poses;
+    response.Data.header = copied_pose_array.header; 
+    response.Data.poses = copied_pose_array.poses;
     
+    
+    //register pose_IDs
+    int pose_count = copied_pose_array.poses.size();
+
+    for(int i = 0;i<pose_count;i++)
+    {
+        response.Data.posesId.push_back(i);
+    }
+       
+    // specify links
+
+
+
 
 
     return true;
@@ -371,7 +372,7 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
    // mMapGraph.header.frame_id = "/map";
     // Get aPoseArray value
 
-    copy_pose_array = aPoseArray;
+    copied_pose_array = aPoseArray;
     poseArrayPub.publish(aPoseArray);
 
 
