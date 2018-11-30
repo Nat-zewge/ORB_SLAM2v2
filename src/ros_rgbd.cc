@@ -43,7 +43,6 @@
 #include <tf/transform_broadcaster.h>
 #include <tf/transform_datatypes.h>
 #include <nav_msgs/Odometry.h>
-
 #include <ORB_SLAM2v2/MapGraph.h>
 #include <ORB_SLAM2v2/PoseGraph.h>
 #include <ORB_SLAM2v2/Link.h>
@@ -53,17 +52,17 @@ using namespace std;
 tf::Quaternion hamiltonProduct(tf::Quaternion a, tf::Quaternion b);
 tf::Transform GetPoseFromWorld(cv::Mat pose);
 bool GetPoseGraphSrv(ORB_SLAM2v2::MapGraph::Request &req, ORB_SLAM2v2::MapGraph::Response &res);
-
+geometry_msgs::PoseArray copy_pose_array;
 
    
 
 bool GetPoseGraphSrv(ORB_SLAM2v2::MapGraph::Request &req, ORB_SLAM2v2::MapGraph::Response &res){
-    ROS_INFO("Get PoseGraph request");
+
     ////////////////// **** Goal ****//////////////////////// //
     // aPoseArray data -> ORB_SLAM2v2::MapGraph::Response &res//
     // aPoseArray is in ImageGrabber::GrabRGBD function below //
     ////////////////////////////////////////////////////////////
-
+    
     // see ORBSLAM2v2/srv/MapGraph.srv
     // see ORBSLAM2v2/msg/PoseGraph.msg, Link.msg
 
@@ -71,13 +70,13 @@ bool GetPoseGraphSrv(ORB_SLAM2v2::MapGraph::Request &req, ORB_SLAM2v2::MapGraph:
     // res = MapGraph on ROS service
     // put values(header,poses, etc..) on MapGraph parameter
     
-
-    /*
-    res.Data.header = mMapGraph.header;
-    res.Data.posesId.push_back(mMapGraph.Data.posesId);
-    res.Data.poses.push_back(mMapGraph.Data.poses);
-    res.Data.links.push_back(mMapGraph.Data.links);
-    */
+    //test code
+    ROS_INFO("callback active");
+  
+    //get pose array header and pose fields
+    res.Data.header = copy_pose_array.header; 
+    res.Data.poses = copy_pose_array.poses;
+    
 
 
     return true;
@@ -323,7 +322,7 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
     ///////////////  Date : 2018.11.27      ///////////////////////
     ///////////////////////////////////////////////////////////////
 
-     geometry_msgs::PoseArray aPoseArray;
+    geometry_msgs::PoseArray aPoseArray;
 
     vector<cv::Mat> TcwArray = mpSLAM->GetPoseArray();
     
@@ -339,12 +338,12 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
 
        aPoseArray.poses.push_back(PoseArrayTmp);
       
-       /*
-         mMapGraph.Data.posesId[i].push_back(i);
-         mMapGraph.Data.poses.push_back(PoseArrayTmp);
-         mMapGraph.Data.links[i].fromId = i ;
-         mMapGraph.Data.links[i].toId = i+1;
-       */
+       
+        //  mMapGraph.Data.posesId[i].push_back(i);
+        //  mMapGraph.Data.poses.push_back(PoseArrayTmp);
+        //  mMapGraph.Data.links[i].fromId = i ;
+        //  mMapGraph.Data.links[i].toId = i+1;
+       //ROS_INFO(aPoseArray.poses);
     }
 
     // define header
@@ -354,6 +353,7 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
    // mMapGraph.header.frame_id = "/map";
     // Get aPoseArray value
 
+    copy_array = aPoseArray;
     poseArrayPub.publish(aPoseArray);
 
 
