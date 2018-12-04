@@ -8,7 +8,7 @@ int32[] posesId
 geometry_msgs/Pose[] poses
 
 # The links
-Link[] links
+ORB_SLAM2v2/Link[] links
 
 
 

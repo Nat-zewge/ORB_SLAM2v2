@@ -36,7 +36,7 @@
 #include "include/System.h"
 #include "ORBParams.h"
 
-
+#include <std_srvs/Empty.h>
 #include <Converter.h>
 #include <geometry_msgs/Pose.h>
 #include <geometry_msgs/PoseStamped.h>
@@ -45,8 +45,10 @@
 #include <tf/transform_datatypes.h>
 #include <nav_msgs/Odometry.h>
 #include <ORB_SLAM2v2/MapGraph.h>
-#include <ORB_SLAM2v2/PoseGraph.h>
-#include <ORB_SLAM2v2/Link.h>
+//#include <ORB_SLAM2v2/PoseGraph.h>
+//#include <ORB_SLAM2v2/Link.h>
+#include <ORB_SLAM2v2/MapSave.h>
+#include <ORB_SLAM2v2/MapLoad.h>
 
 using namespace std;
 
@@ -57,7 +59,8 @@ geometry_msgs::PoseArray copied_pose_array;
 ORB_SLAM2v2::Link link_array;
 int link_origin_id;  
 int link_destination_id;  
-
+string sSaveFileName;
+string sLoadFileName;
 
 bool GetPoseGraphSrv(ORB_SLAM2v2::MapGraph::Request &req, ORB_SLAM2v2::MapGraph::Response &response){
 
@@ -72,24 +75,65 @@ bool GetPoseGraphSrv(ORB_SLAM2v2::MapGraph::Request &req, ORB_SLAM2v2::MapGraph:
     
     //register pose_IDs
     int pose_count = copied_pose_array.poses.size();
-    
-
+    cout << pose_count<<endl;
     for(int i = 0;i<pose_count;i++)
     {
         response.Data.posesId.push_back(i);
         
         //the code below compiles but causes fatal crash
-        //the solution must be something similar i think
+        //the solution must be something similar
+        //over flow problem(there is no response.Data.links[pose_count])
+        
+        /*
+        pose[0]                 pose[1]           ...       pose[pose_count-1]
+        fromid= null toid=0     fromid=  toid=0             fromid= null toid=0         
+        will be brief on 12.3(monday)
+        */
 
-        //response.Data.links[i].fromId = i;
-        //response.Data.links[i+1].toId = i+1;
+        if(i < pose_count){
+            link_array.toId = i;
+            //response.Data.links[i].toId = i;
+            if(i > 0){
+               // response.Data.links[i-1].fromId = i-1; 
+            link_array.fromId = i-1;
+            }
+            response.Data.links.push_back(link_array);
+            
+       }
     }
-
-    
 
     return true;
 }
 
+
+
+bool MapSave(ORB_SLAM2v2::MapSave::Request &req, ORB_SLAM2v2::MapSave::Response &response){
+
+    //test code
+    ROS_INFO("MapSave callback");
+  
+    //get file name
+    sSaveFileName = req.file_name;
+    cout<<"ros_rgbd::MapSave" << sSaveFileName << endl;
+    //get pose array header and pose fields
+    response.succeeded = true;
+
+    return true;
+}
+
+
+bool MapLoad(ORB_SLAM2v2::MapLoad::Request &req, ORB_SLAM2v2::MapLoad::Response &response){
+
+    //test code
+    ROS_INFO("MapLoad callback");
+
+    //get file name
+    sLoadFileName = req.file_name;
+    //get pose array header and pose fields
+    response.succeeded = true;
+
+    return true;
+}
 
 class ImageGrabber
 {
@@ -115,6 +159,8 @@ public:
     ros::Publisher VisualOdometryPub;
 
     ros::ServiceServer PoseGraphSrv;
+    ros::ServiceServer MapSaveSrv;
+    ros::ServiceServer MapLoadSrv;
 
     bool publish_tf=false;
     bool publish_odom=false;
@@ -138,6 +184,11 @@ public:
         //service Pose-graph
         PoseGraphSrv = nh.advertiseService("get_graph", GetPoseGraphSrv);
 
+        //service save/load map
+        MapSaveSrv = nh.advertiseService("map_save", MapSave);
+        MapLoadSrv = nh.advertiseService("map_load", MapLoad);
+        
+
         br = _br;
 
         nh.param("publish_tf", publish_tf, publish_tf);
@@ -145,7 +196,10 @@ public:
     }
 
     void GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const sensor_msgs::ImageConstPtr& msgD);
+    void ServiceSaveMapCallback();
+    void ServiceLoadMapCallback();
 };
+
 
 int main(int argc, char **argv)
 {
@@ -172,11 +226,14 @@ int main(int argc, char **argv)
     string mapPCLPath = "/optimized_pointcloud.pcd";
     string homeEnv;
 
-    char pwd[1024];
-    getcwd(pwd, 1024);
-    mapBinaryPath = pwd + mapBinaryPath;
-    mapOctomapPath = pwd + mapOctomapPath;
-    mapPCLPath = pwd + mapPCLPath;
+    //char pwd[1024];
+    //getcwd(pwd, 1024);
+    
+    
+    string strCurrentDr = "/home/ritjt/catkin_ws/src/ORB_SLAM2v2";
+    mapBinaryPath = strCurrentDr + mapBinaryPath;
+    mapOctomapPath = strCurrentDr + mapOctomapPath;
+    mapPCLPath = strCurrentDr + mapPCLPath;
 
     nh.param("publish_tf", publish_tf, publish_tf);
     nh.param("publish_odom", publish_odom, publish_odom);
@@ -212,6 +269,8 @@ int main(int argc, char **argv)
     message_filters::Synchronizer<sync_pol> sync(sync_pol(10), rgb_sub,depth_sub);
     sync.registerCallback(boost::bind(&ImageGrabber::GrabRGBD,&igb,_1,_2));
 
+  
+
     ros::spin();
 
     // Stop all threads
@@ -236,6 +295,36 @@ tf::Quaternion hamiltonProduct(tf::Quaternion a, tf::Quaternion b)
 
     return c;
 }
+
+
+void ImageGrabber::ServiceSaveMapCallback(){
+    
+    if(sSaveFileName.length() > 0){
+        cout << "save file "<<endl;
+        
+        string strtmp = "/home/ritjt/catkin_ws/src/ORB_SLAM2v2";
+        strtmp = strtmp +sSaveFileName + ".bin";
+        mpSLAM->SaveMap(strtmp);
+        
+        sSaveFileName = "";
+    }
+
+}
+
+void ImageGrabber::ServiceLoadMapCallback(){
+    
+    if(sLoadFileName.length() > 0){
+        cout << "load file "<<endl;
+        
+         string strtmp = "/home/ritjt/catkin_ws/src/ORB_SLAM2v2";
+         strtmp = strtmp +sLoadFileName + ".bin";
+        mpSLAM->ServiceLoadMap(strtmp);
+        
+        sLoadFileName = "";
+    }
+
+}
+
 
 void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const sensor_msgs::ImageConstPtr& msgD)
 {
@@ -409,6 +498,10 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
     VisualOdometryPub.publish(VisualOdometry);
 	}
     ////////////////////////////////////////////////////////
+
+
+    this->ServiceSaveMapCallback();
+    this->ServiceLoadMapCallback();
 
 }
 

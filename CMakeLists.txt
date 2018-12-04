@@ -61,13 +61,18 @@ endif()
 # add messagefiles
 add_message_files(
   FILES 
-  Link.msg  
-  PoseGraph.msg	
+  PoseGraph.msg
+  Link.msg	
 )
 
 
 # add service
-add_service_files(FILES MapGraph.srv)
+add_service_files(
+   FILES 
+   MapGraph.srv
+   MapSave.srv
+   MapLoad.srv
+   )
 
 
 

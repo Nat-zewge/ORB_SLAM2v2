@@ -141,6 +141,9 @@ public:
     void RequestSaveMap();
     void RequestLoadMap();
 
+    bool ServiceLoadMap(const string &filename);
+
+
 private:
 
     // Input sensor

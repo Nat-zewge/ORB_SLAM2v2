@@ -137,7 +137,7 @@ void PointCloudMapping::saveOctomap()
         *globalMap += loadedCloud;
     }
 
-    pcl::io::savePCDFileBinary ( "optimized_pointcloud.pcd", *globalMap );
+    pcl::io::savePCDFileBinary ( "/home/ritjt/catkin_ws/src/ORB_SLAM2v2/optimized_pointcloud.pcd", *globalMap );
     cout<<"Save point cloud file successfully!"<<endl;
 
     cout << "copy data into octomap..." << endl;
@@ -162,14 +162,19 @@ void PointCloudMapping::saveOctomap()
                                       << coefficients->values[2] << " "
                                       << coefficients->values[3] << endl;
 
-    Eigen::Matrix4f transform = Eigen::Matrix4f::Identity();
-    Eigen::Matrix4f transform2 = Eigen::Matrix4f::Identity();
+    Eigen::Matrix4f transform_trans = Eigen::Matrix4f::Identity();
+    Eigen::Matrix4f transform_rot_x = Eigen::Matrix4f::Identity();
+    Eigen::Matrix4f transform_rot_y = Eigen::Matrix4f::Identity();
+    Eigen::Matrix4f transform_rot_z = Eigen::Matrix4f::Identity();
+
 
     cout << atan(coefficients->values[0]/coefficients->values[2]) << ", " << atan(coefficients->values[1]/coefficients->values[2]) << endl;
 
     double xtoz = atan(coefficients->values[0]/coefficients->values[2]);
     double ytoz = atan(coefficients->values[1]/coefficients->values[2]);
 
+
+/*
     transform(0,0) = 0		;transform(0,1) = -1		;transform(0,2) = 0;
     transform(1,0) = 1		;transform(1,1) = 0		;transform(1,2) = 0;
     transform(2,0) = 0		;transform(2,1) = 0		;transform(2,2) = 1;
@@ -177,8 +182,59 @@ void PointCloudMapping::saveOctomap()
     transform2(0,0) = 1	;transform2(0,1) = 0		;transform2(0,2) = 0;
     transform2(1,0) = 0	;transform2(1,1) = cos(ytoz)	;transform2(1,2) = -sin(ytoz);
     transform2(2,0) = 0	;transform2(2,1) = sin(ytoz)	;transform2(2,2) = cos(ytoz);
+*/
+    //translation matrix
+    transform_trans(0,0) = 0		;transform_trans(0,1) = 1		;transform_trans(0,2) = 0;
+    transform_trans(1,0) = 0		;transform_trans(1,1) = 0		;transform_trans(1,2) = -1;
+    transform_trans(2,0) = -1		;transform_trans(2,1) = 0		;transform_trans(2,2) = 0;
 
-    pcl::transformPointCloud (*globalMap, *transformed_cloud, transform*transform2);
+    //confused about axis
+
+    //rotation x-axis matrix
+    
+    transform_rot_x(0,0) = 0	 ;transform_rot_x(0,1) = 1		;transform_rot_x(0,2) = 0;
+    transform_rot_x(1,0) = -1    ;transform_rot_x(1,1) = 0	    ;transform_rot_x(1,2) = 0;
+    transform_rot_x(2,0) = 0	 ;transform_rot_x(2,1) = 0    	;transform_rot_x(2,2) = 1;
+    
+    // rotation x-axis    
+    /*
+    transform_rot_x(0,0) = 0	 ;transform_rot_x(0,1) = 1		;transform_rot_x(0,2) = 0;
+    transform_rot_x(1,0) = 0     ;transform_rot_x(1,1) = 0	    ;transform_rot_x(1,2) = 1;
+    transform_rot_x(2,0) = 0	 ;transform_rot_x(2,1) = -1    	;transform_rot_x(2,2) = 0;
+    */
+  
+
+
+    // rotation y-axis
+    
+    transform_rot_y(0,0) = 0	 ;transform_rot_y(0,1) = 0		;transform_rot_y(0,2) = -1;
+    transform_rot_y(1,0) = 0     ;transform_rot_y(1,1) = 1	    ;transform_rot_y(1,2) = 0;
+    transform_rot_y(2,0) = 1	 ;transform_rot_y(2,1) = 0    	;transform_rot_y(2,2) = 0;
+    
+
+
+    // rotation z-axis
+    /*
+    transform_rot_z(0,0) = 1	 ;transform_rot_z(0,1) = 0		;transform_rot_z(0,2) = 0;
+    transform_rot_z(1,0) = 0     ;transform_rot_z(1,1) = 0	    ;transform_rot_z(1,2) = 1;
+    transform_rot_z(2,0) = 0	 ;transform_rot_z(2,1) = -1    	;transform_rot_z(2,2) = 0;
+    */
+
+
+
+
+    
+   /*
+    transform2(0,0) = cos(xtoz)	   ;transform2(0,1) = -sin(xtoz)	;transform2(0,2) = 0;
+    transform2(1,0) = sin(xtoz)    ;transform2(1,1) = cos(xtoz)	    ;transform2(1,2) = 0;
+    transform2(2,0) = 0	           ;transform2(2,1) = 0         	;transform2(2,2) = 1;
+    */
+
+
+
+    // rotation * translation
+    pcl::transformPointCloud (*globalMap, *transformed_cloud, transform_trans*transform_rot_x*transform_rot_y);
+
 /*
     pcl::visualization::CloudViewer viewer("lhc_viewer");
 
@@ -204,11 +260,11 @@ void PointCloudMapping::saveOctomap()
         // Insert the point of Point Cloud to octomap
         tree.updateNode( octomap::point3d(p.x, p.y, p.z), true );
     }
-
+    cout << "4" << endl;
     // update octomap
     tree.updateInnerOccupancy();
     // save octomap
-    tree.writeBinary( "global_octomap.bt" );
+    tree.writeBinary("/home/ritjt/catkin_ws/src/ORB_SLAM2v2/global_octomap.bt");
     cout<<"save octomap ... done."<<endl;
 
 }

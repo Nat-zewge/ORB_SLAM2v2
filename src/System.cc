@@ -684,6 +684,7 @@ void System::SaveKeyFrameTrajectoryTUM(const string &filename)
     cout << endl << "trajectory saved!" << endl;
 }
 
+
 void System::SaveTrajectoryKITTI(const string &filename)
 {
     cout << endl << "Saving camera trajectory to " << filename << " ..." << endl;
@@ -797,6 +798,18 @@ vector<cv::KeyPoint> System::GetTrackedKeyPointsUn()
 
 void System::SaveMap(const string &filename)
 {
+    
+    cout << "save binary map" << endl;
+
+    //sting mapOctomapPath = pwd + "/" + filename + ".bt";
+    //sting mapPCLPath = pwd + "/" + filename + ".pcd";
+
+    if(filename.length() > 0){
+        mapfile = filename;
+    }
+    cout << "mapfile:" << mapfile << endl;
+
+
     std::ofstream out(mapfile, std::ios_base::binary);
     if (!out)
     {
@@ -817,16 +830,19 @@ void System::SaveMap(const string &filename)
 
     std:string cmd = "cp "+mapfile+" "+mapfile+".copy";
     int ld = system(cmd.c_str());
+
+
 }
 bool System::LoadMap(const string &filename)
 {
-    std::ifstream in(mapfile, std::ios_base::binary);
+    cout << "4" << filename <<endl;
+    std::ifstream in(filename, std::ios_base::binary);
     if (!in)
     {
-        cerr << "Cannot Open Mapfile: " << mapfile << " , You need create it first!" << std::endl;
+        cerr << "Cannot Open Mapfile: " << filename << " , You need create it first!" << std::endl;
         return false;
     }
-    cout << "Loading Mapfile: " << mapfile << std::flush;
+    cout << "Loading Mapfile: " << filename << std::flush;
     boost::archive::binary_iarchive ia(in, boost::archive::no_header);
     ia >> mpMap;
     ia >> mpKeyFrameDatabase;
@@ -881,6 +897,54 @@ bool System::LoadMap(){
     cout << " ...done" << endl;
     in.close();
 
+    mpFrameDrawer->getMap(mpMap);
+    mpMapDrawer->getMap(mpMap);
+    mpTracker->getMap(mpMap);
+    mpLocalMapper->getMap(mpMap);
+    mpLoopCloser->getMap(mpMap);
+    
+
+    delete oldMap;
+
+    return true;
+}
+bool System::ServiceLoadMap(const string &filename)
+{
+    std::ifstream in(filename, std::ios_base::binary);
+    Map* oldMap = mpMap;
+    {
+        unique_lock<mutex> lock(mMutexReset);
+        mpPointCloudMapping->Reset();//PCL
+         std::this_thread::sleep_for(std::chrono::microseconds(2000));
+    }
+    mpMap->clear();
+
+    if (!in)
+    {
+        cerr << "Cannot Open Mapfile: " << filename << " , You need create it first!" << std::endl;
+        return false;
+    }
+
+    boost::archive::binary_iarchive ia(in, boost::archive::no_header);
+    ia >> mpMap;
+    ia >> mpKeyFrameDatabase;
+
+    mpKeyFrameDatabase->SetORBvocabulary(mpVocabulary);
+    cout << " ...done" << std::endl;
+    cout << "Map Reconstructing" << flush;
+    vector<ORB_SLAM2::KeyFrame*> vpKFS = mpMap->GetAllKeyFrames();
+    unsigned long mnFrameId = 0;
+    for (auto it:vpKFS) {
+        it->SetORBvocabulary(mpVocabulary);
+        it->ComputeBoW();
+        if (it->mnFrameId > mnFrameId)
+            mnFrameId = it->mnFrameId;
+    }
+    Frame::nNextId = mnFrameId;
+
+    cout << " ...done" << endl;
+    in.close();
+    
     mpFrameDrawer->getMap(mpMap);
     mpMapDrawer->getMap(mpMap);
     mpTracker->getMap(mpMap);
