@@ -74,6 +74,9 @@ public:
 
     void getMap(Map *pMap);
 
+    bool WaitForMemoryConnect;
+    bool ReadyForMemoryConnect;
+
 protected:
 
     bool CheckNewKeyFrames();

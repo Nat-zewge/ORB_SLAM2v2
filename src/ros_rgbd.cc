@@ -61,6 +61,7 @@ int link_origin_id;
 int link_destination_id;  
 string sSaveFileName;
 string sLoadFileName;
+string strCurrentDr;
 
 bool GetPoseGraphSrv(ORB_SLAM2v2::MapGraph::Request &req, ORB_SLAM2v2::MapGraph::Response &response){
 
@@ -226,28 +227,31 @@ int main(int argc, char **argv)
     string mapPCLPath = "/optimized_pointcloud.pcd";
     string homeEnv;
 
-    //char pwd[1024];
-    //getcwd(pwd, 1024);
-    
-    
-    string strCurrentDr = "/home/ritjt/catkin_ws/src/ORB_SLAM2v2";
-    mapBinaryPath = strCurrentDr + mapBinaryPath;
-    mapOctomapPath = strCurrentDr + mapOctomapPath;
-    mapPCLPath = strCurrentDr + mapPCLPath;
 
     nh.param("publish_tf", publish_tf, publish_tf);
     nh.param("publish_odom", publish_odom, publish_odom);
     nh.param("mapping", mapping, mapping);
     nh.param("build_octomap", build_octomap, build_octomap);
+
+    ORBParams params(publish_tf, publish_odom, mapping, build_octomap);
+     params.setMapWorkingPath(strCurrentDr.c_str());
+     
+    //string strCurrentDr = "/home/ritjt/catkin_ws/src/ORB_SLAM2v2";
+    strCurrentDr = string(params.getMapWorkingPath());
+    mapBinaryPath = strCurrentDr + mapBinaryPath;
+    mapOctomapPath = strCurrentDr + mapOctomapPath;
+    mapPCLPath = strCurrentDr + mapPCLPath;
     nh.param("mapBinaryPath", mapBinaryPath, mapBinaryPath);
     nh.param("mapOctomapPath", mapOctomapPath, mapOctomapPath);
     nh.param("mapPCLPath", mapPCLPath, mapPCLPath);
+    nh.param("mapWorkingPath", strCurrentDr, strCurrentDr);
     
 
-    ORBParams params(publish_tf, publish_odom, mapping, build_octomap);
     params.setMapBinaryPath(mapBinaryPath.c_str());
     params.setMapOctomapPath(mapOctomapPath.c_str());
     params.setMapPCLPath(mapPCLPath.c_str());
+   
+    
 
     string topic_rgb = "/camera/rgb/image_raw";
     string topic_depth = "/camera/depth/image";
@@ -302,7 +306,8 @@ void ImageGrabber::ServiceSaveMapCallback(){
     if(sSaveFileName.length() > 0){
         cout << "save file "<<endl;
         
-        string strtmp = "/home/ritjt/catkin_ws/src/ORB_SLAM2v2";
+        string strtmp = "/home/ymkim/catkin_ws/src/ORB_SLAM2v2";
+        
         strtmp = strtmp +sSaveFileName + ".bin";
         mpSLAM->SaveMap(strtmp);
         
@@ -316,7 +321,8 @@ void ImageGrabber::ServiceLoadMapCallback(){
     if(sLoadFileName.length() > 0){
         cout << "load file "<<endl;
         
-         string strtmp = "/home/ritjt/catkin_ws/src/ORB_SLAM2v2";
+         string strtmp = "/home/ymkim/catkin_ws/src/ORB_SLAM2v2";
+         
          strtmp = strtmp +sLoadFileName + ".bin";
         mpSLAM->ServiceLoadMap(strtmp);
         
@@ -372,7 +378,7 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
     kf_pose_stamped.pose = kf_pose;
     kf_stamped_publisher.publish(kf_pose_stamped);
 
-
+    
 
     /*geometry_msgs::TransformStamped odom_trans;
     odom_trans.header.stamp = ros::Time::now();

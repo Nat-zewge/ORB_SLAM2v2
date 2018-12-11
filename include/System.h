@@ -142,7 +142,7 @@ public:
     void RequestLoadMap();
 
     bool ServiceLoadMap(const string &filename);
-
+    int ConnectMemory;
 
 private:
 

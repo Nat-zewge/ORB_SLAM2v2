@@ -82,6 +82,9 @@ public:
 
     void getMap(Map *pMap);
 
+    bool WaitForMemoryConnect;
+    bool ReadyForMemoryConnect;
+
     EIGEN_MAKE_ALIGNED_OPERATOR_NEW
 
 protected:
@@ -99,6 +102,7 @@ protected:
     void ResetIfRequested();
     bool mbResetRequested;
     std::mutex mMutexReset;
+    std::mutex mMutexWaitForBundleAdjustment;
 
     bool CheckFinish();
     void SetFinish();

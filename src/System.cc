@@ -36,7 +36,7 @@ namespace ORB_SLAM2
 {
 
 System::System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor, ORBParams &params,
-               const bool bUseViewer):mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false),
+               const bool bUseViewer):mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false), ConnectMemory(0),
         mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false), mParams(params), mbRequestMapSave(false), mbSaveImages(false), mbRequestMapLoad(false)
 {
     // Output welcome message
@@ -93,7 +93,7 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     cout << "Vocabulary loaded!" << endl << endl;
 
     mpPointCloudMapping = make_shared<PointCloudMapping>(0.1);//PCL,OctoMap
-
+    mpPointCloudMapping->setFileNames(params.getMapPCLPath(), params.getMapOctomapPath());
     //Create KeyFrame Database
     //Create the Map
     if (!mapfile.empty() && LoadMap(mapfile))
@@ -583,8 +583,10 @@ void System::Shutdown()
     }
     if(mpViewer)
         pangolin::BindToContext("ORB-SLAM2: Map Viewer");
-    if (is_save_map)
-        SaveMap(mapfile);
+    
+    //if (is_save_map)
+    //    SaveMap(mapfile);
+
 }
 
 void System::SaveTrajectoryTUM(const string &filename)
@@ -817,8 +819,15 @@ void System::SaveMap(const string &filename)
         exit(-1);
     }
 
+
+    mpLoopCloser->ReadyForMemoryConnect = true;
+    mpLocalMapper->ReadyForMemoryConnect = true;
+    while(!(mpLoopCloser->WaitForMemoryConnect&&mpLocalMapper->WaitForMemoryConnect)){
+        std::this_thread::sleep_for(std::chrono::microseconds(2000));
+    }
+
     {
-        unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
+        //unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
         cout << "Saving Mapfile: " << mapfile << std::flush;
         std::this_thread::sleep_for(std::chrono::microseconds(2000));
         boost::archive::binary_oarchive oa(out, boost::archive::no_header);
@@ -831,6 +840,10 @@ void System::SaveMap(const string &filename)
     std:string cmd = "cp "+mapfile+" "+mapfile+".copy";
     int ld = system(cmd.c_str());
 
+    mpPointCloudMapping->saveOctomap();
+        
+    mpLoopCloser->WaitForMemoryConnect = false;
+    mpLocalMapper->WaitForMemoryConnect = false;
 
 }
 bool System::LoadMap(const string &filename)
@@ -842,10 +855,13 @@ bool System::LoadMap(const string &filename)
         cerr << "Cannot Open Mapfile: " << filename << " , You need create it first!" << std::endl;
         return false;
     }
-    cout << "Loading Mapfile: " << filename << std::flush;
-    boost::archive::binary_iarchive ia(in, boost::archive::no_header);
-    ia >> mpMap;
-    ia >> mpKeyFrameDatabase;
+    {
+        cout << "Loading Mapfile: " << filename << std::flush;
+        std::this_thread::sleep_for(std::chrono::microseconds(2000));
+        boost::archive::binary_iarchive ia(in, boost::archive::no_header);
+        ia >> mpMap;
+        ia >> mpKeyFrameDatabase;
+    }
     mpKeyFrameDatabase->SetORBvocabulary(mpVocabulary);
     cout << " ...done" << std::endl;
     cout << "Map Reconstructing" << flush;
@@ -877,6 +893,13 @@ bool System::LoadMap(){
         return false;
     }
 
+    cout << "Loading Mapfile" << std::flush;
+    mpLoopCloser->ReadyForMemoryConnect = true;
+    mpLocalMapper->ReadyForMemoryConnect = true;
+    while(!(mpLoopCloser->WaitForMemoryConnect&&mpLocalMapper->WaitForMemoryConnect)){
+        std::this_thread::sleep_for(std::chrono::microseconds(2000));
+    }
+
     boost::archive::binary_iarchive ia(in, boost::archive::no_header);
     ia >> mpMap;
     ia >> mpKeyFrameDatabase;
@@ -905,6 +928,10 @@ bool System::LoadMap(){
     
 
     delete oldMap;
+
+    mpLoopCloser->WaitForMemoryConnect = false;
+    mpLocalMapper->WaitForMemoryConnect = false;
+    ConnectMemory = 0;
 
     return true;
 }
@@ -925,6 +952,13 @@ bool System::ServiceLoadMap(const string &filename)
         return false;
     }
 
+    cout << "Loading Mapfile" << std::flush;
+    mpLoopCloser->ReadyForMemoryConnect = true;
+    mpLocalMapper->ReadyForMemoryConnect = true;
+    while(!(mpLoopCloser->WaitForMemoryConnect&&mpLocalMapper->WaitForMemoryConnect)){
+        std::this_thread::sleep_for(std::chrono::microseconds(2000));
+    }
+
     boost::archive::binary_iarchive ia(in, boost::archive::no_header);
     ia >> mpMap;
     ia >> mpKeyFrameDatabase;
@@ -954,6 +988,10 @@ bool System::ServiceLoadMap(const string &filename)
 
     delete oldMap;
 
+    mpLoopCloser->WaitForMemoryConnect = false;
+    mpLocalMapper->WaitForMemoryConnect = false;
+    ConnectMemory = 0;
+    
     return true;
 }
 

@@ -36,6 +36,12 @@ PointCloudMapping::PointCloudMapping(double resolution_)
     //viewerThread = make_shared<thread>( bind(&PointCloudMapping::viewer, this ) );
 }
 
+void PointCloudMapping::setFileNames(const char *pcl,const char *oct)
+{
+    pcl_name = string(pcl);
+    oct_name = string(oct);
+}
+
 void PointCloudMapping::Reset()
 {
     keyframes.clear();
@@ -55,7 +61,7 @@ void PointCloudMapping::shutdown()
         shutDownFlag = true;
         keyFrameUpdated.notify_one();
     }
-    PointCloudMapping::saveOctomap();
+    //PointCloudMapping::saveOctomap();
     //viewerThread->join();
 }
 
@@ -129,15 +135,15 @@ void PointCloudMapping::saveOctomap()
     //pcl::PointCloud<pcl::PointXYZRGBA> cloudt;
     //pcl::io::loadPCDFile<pcl::PointXYZRGBA> ( "optimized_pointcloud.pcd", cloudt );
 
-    ifstream ifs("optimized_pointcloud.pcd");
+    ifstream ifs(pcl_name);
 
     if(ifs.is_open()){
         ifs.close();
-        pcl::io::loadPCDFile<pcl::PointXYZRGBA> ( "optimized_pointcloud.pcd", loadedCloud);
+        pcl::io::loadPCDFile<pcl::PointXYZRGBA> ( pcl_name, loadedCloud);
         *globalMap += loadedCloud;
     }
 
-    pcl::io::savePCDFileBinary ( "/home/ritjt/catkin_ws/src/ORB_SLAM2v2/optimized_pointcloud.pcd", *globalMap );
+    pcl::io::savePCDFileBinary ( pcl_name, *globalMap );
     cout<<"Save point cloud file successfully!"<<endl;
 
     cout << "copy data into octomap..." << endl;
@@ -264,9 +270,12 @@ void PointCloudMapping::saveOctomap()
     // update octomap
     tree.updateInnerOccupancy();
     // save octomap
-    tree.writeBinary("/home/ritjt/catkin_ws/src/ORB_SLAM2v2/global_octomap.bt");
+    tree.writeBinary(oct_name);
     cout<<"save octomap ... done."<<endl;
 
 }
 
-
+void PointCloudMapping::saveOctomapThread()
+{
+    new thread(&PointCloudMapping::saveOctomap, this);
+}
