@@ -227,17 +227,16 @@ int main(int argc, char **argv)
     string mapPCLPath = "/optimized_pointcloud.pcd";
     string homeEnv;
 
-
     nh.param("publish_tf", publish_tf, publish_tf);
     nh.param("publish_odom", publish_odom, publish_odom);
     nh.param("mapping", mapping, mapping);
     nh.param("build_octomap", build_octomap, build_octomap);
 
     ORBParams params(publish_tf, publish_odom, mapping, build_octomap);
-     params.setMapWorkingPath(strCurrentDr.c_str());
-     
-    //string strCurrentDr = "/home/ritjt/catkin_ws/src/ORB_SLAM2v2";
-    strCurrentDr = string(params.getMapWorkingPath());
+    
+    //strCurrentDr = string(params.getMapWorkingPath());
+ 
+
     mapBinaryPath = strCurrentDr + mapBinaryPath;
     mapOctomapPath = strCurrentDr + mapOctomapPath;
     mapPCLPath = strCurrentDr + mapPCLPath;
@@ -246,12 +245,12 @@ int main(int argc, char **argv)
     nh.param("mapPCLPath", mapPCLPath, mapPCLPath);
     nh.param("mapWorkingPath", strCurrentDr, strCurrentDr);
     
-
+    params.setMapWorkingPath(strCurrentDr.c_str());
     params.setMapBinaryPath(mapBinaryPath.c_str());
     params.setMapOctomapPath(mapOctomapPath.c_str());
     params.setMapPCLPath(mapPCLPath.c_str());
    
-    
+    cout << "strCurrentDr : " << strCurrentDr << endl;
 
     string topic_rgb = "/camera/rgb/image_raw";
     string topic_depth = "/camera/depth/image";
@@ -306,7 +305,7 @@ void ImageGrabber::ServiceSaveMapCallback(){
     if(sSaveFileName.length() > 0){
         cout << "save file "<<endl;
         
-        string strtmp = "/home/ymkim/catkin_ws/src/ORB_SLAM2v2";
+        string strtmp = strCurrentDr;
         
         strtmp = strtmp +sSaveFileName + ".bin";
         mpSLAM->SaveMap(strtmp);
@@ -321,7 +320,7 @@ void ImageGrabber::ServiceLoadMapCallback(){
     if(sLoadFileName.length() > 0){
         cout << "load file "<<endl;
         
-         string strtmp = "/home/ymkim/catkin_ws/src/ORB_SLAM2v2";
+         string strtmp = strCurrentDr;
          
          strtmp = strtmp +sLoadFileName + ".bin";
         mpSLAM->ServiceLoadMap(strtmp);
