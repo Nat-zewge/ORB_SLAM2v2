@@ -126,6 +126,7 @@ protected:
 
     bool mbAcceptKeyFrames;
     std::mutex mMutexAccept;
+    bool bServiceMapLoad;
 };
 
 } //namespace ORB_SLAM

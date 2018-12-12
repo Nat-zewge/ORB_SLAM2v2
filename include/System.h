@@ -140,6 +140,7 @@ public:
     
     void RequestSaveMap();
     void RequestLoadMap();
+    void RequestServiceLoadMap(string filename);
 
     bool ServiceLoadMap(const string &filename);
     int ConnectMemory;
@@ -208,6 +209,9 @@ private:
 
     //Params form launch file
     ORBParams mParams;
+
+    //load map file name
+    string mstrfilename;
 };
 
 }// namespace ORB_SLAM

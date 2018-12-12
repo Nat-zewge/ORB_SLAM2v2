@@ -47,7 +47,6 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     "under certain conditions. See LICENSE.txt." << endl << endl;
 
     cout << "Input sensor was set to: ";
-
     if(mSensor==MONOCULAR)
         cout << "Monocular" << endl;
     else if(mSensor==STEREO)
@@ -174,7 +173,6 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     "under certain conditions. See LICENSE.txt." << endl << endl;
 
     cout << "Input sensor was set to: ";
-
     if(mSensor==MONOCULAR)
         cout << "Monocular" << endl;
     else if(mSensor==STEREO)
@@ -282,7 +280,6 @@ mSensor(sensor), is_save_map(is_save_map_), mpViewer(static_cast<Viewer*>(NULL))
     "under certain conditions. See LICENSE.txt." << endl << endl;
 
     cout << "Input sensor was set to: ";
-
     if(mSensor==MONOCULAR)
         cout << "Monocular" << endl;
     else if(mSensor==STEREO)
@@ -950,14 +947,14 @@ bool System::LoadMap(){
 }
 bool System::ServiceLoadMap(const string &filename)
 {
-    std::ifstream in(filename, std::ios_base::binary);
     Map* oldMap = mpMap;
+    cout << "file name in serviceloadmap : " << filename << endl;
     {
         unique_lock<mutex> lock(mMutexReset);
         mpPointCloudMapping->Reset();//PCL
-         std::this_thread::sleep_for(std::chrono::microseconds(2000));
     }
-    mpMap->clear();
+    std::ifstream in(filename, std::ios_base::binary);
+    //mpMap->clear();
 
     if (!in)
     {
@@ -971,7 +968,7 @@ bool System::ServiceLoadMap(const string &filename)
     //mpLocalMapper->ReadyForMemoryConnect = true;
     while(!(mpLoopCloser->WaitForMemoryConnect && mpLocalMapper->isStopped())){
         cout << "Please wait for a while"<< endl;
-        std::this_thread::sleep_for(std::chrono::microseconds(2000));
+        std::this_thread::sleep_for(std::chrono::microseconds(1000));
     }
 
     boost::archive::binary_iarchive ia(in, boost::archive::no_header);
@@ -989,17 +986,16 @@ bool System::ServiceLoadMap(const string &filename)
         if (it->mnFrameId > mnFrameId)
             mnFrameId = it->mnFrameId;
     }
+
     Frame::nNextId = mnFrameId;
 
     cout << " ...done" << endl;
     in.close();
-    
     mpFrameDrawer->getMap(mpMap);
     mpMapDrawer->getMap(mpMap);
     mpTracker->getMap(mpMap);
     mpLocalMapper->getMap(mpMap);
     mpLoopCloser->getMap(mpMap);
-    
 
     delete oldMap;
 
@@ -1007,7 +1003,6 @@ bool System::ServiceLoadMap(const string &filename)
     //mpLocalMapper->WaitForMemoryConnect = false;
     mpLocalMapper->Release();
     ConnectMemory = 0;
-    
     return true;
 }
 
@@ -1016,6 +1011,11 @@ void System::RequestSaveMap(){
 }
 void System::RequestLoadMap(){
     mbRequestMapLoad = true;
+}
+
+void System::RequestServiceLoadMap(string filename){
+
+   mpViewer->setServiceLoadedMap(filename);
 }
 
 

@@ -121,6 +121,14 @@ bool MapLoad(ORB_SLAM2v2::MapLoad::Request &req, ORB_SLAM2v2::MapLoad::Response 
     //get pose array header and pose fields
     response.succeeded = true;
 
+    // need to control viewer 
+    // localization mode : on 
+    
+    //           ros_rgbd                    system                     viewer
+    //   ServiceLoadMapCallback  ->   RequestServiceLoadMap   ->   
+    //                                                              setServiceLoadedMap       
+    //                                    ServiceLoadMap      <-
+    
     return true;
 }
 
@@ -287,30 +295,22 @@ void ImageGrabber::ServiceSaveMapCallback(){
     
     if(sSaveFileName.length() > 0){
         cout << "save file "<<endl;
-        
         string strtmp = strCurrentDr;
-        
         strtmp = strtmp +sSaveFileName + ".bin";
         mpSLAM->SaveMap(strtmp);
-        
         sSaveFileName = "";
     }
-
 }
 
 void ImageGrabber::ServiceLoadMapCallback(){
     
     if(sLoadFileName.length() > 0){
         cout << "load file "<<endl;
-        
-         string strtmp = strCurrentDr;
-         
-         strtmp = strtmp +sLoadFileName + ".bin";
-        mpSLAM->ServiceLoadMap(strtmp);
-        
+        string strtmp = strCurrentDr; 
+        strtmp = strtmp +sLoadFileName + ".bin";
+        mpSLAM->RequestServiceLoadMap(strtmp);
         sLoadFileName = "";
     }
-
 }
 
 
