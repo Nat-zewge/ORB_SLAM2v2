@@ -115,6 +115,7 @@ void Viewer::Run()
             bFollow = false;
         }
 
+
         if(menuLocalizationMode && !bLocalizationMode)
         {
             mpSystem->ActivateLocalizationMode();

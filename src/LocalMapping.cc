@@ -51,6 +51,7 @@ void LocalMapping::Run()
 
     while(1)
     {
+        /*
         if(ReadyForMemoryConnect){
             WaitForMemoryConnect = true;
             while(WaitForMemoryConnect){
@@ -58,7 +59,9 @@ void LocalMapping::Run()
             }
             ReadyForMemoryConnect = false;
         }
+        */
 
+       
         // Tracking will see that Local Mapping is busy
         SetAcceptKeyFrames(false);
 

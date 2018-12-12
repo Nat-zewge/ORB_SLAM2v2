@@ -45,8 +45,6 @@
 #include <tf/transform_datatypes.h>
 #include <nav_msgs/Odometry.h>
 #include <ORB_SLAM2v2/MapGraph.h>
-//#include <ORB_SLAM2v2/PoseGraph.h>
-//#include <ORB_SLAM2v2/Link.h>
 #include <ORB_SLAM2v2/MapSave.h>
 #include <ORB_SLAM2v2/MapLoad.h>
 
@@ -80,33 +78,23 @@ bool GetPoseGraphSrv(ORB_SLAM2v2::MapGraph::Request &req, ORB_SLAM2v2::MapGraph:
     for(int i = 0;i<pose_count;i++)
     {
         response.Data.posesId.push_back(i);
-        
-        //the code below compiles but causes fatal crash
-        //the solution must be something similar
-        //over flow problem(there is no response.Data.links[pose_count])
-        
+                
         /*
         pose[0]                 pose[1]           ...       pose[pose_count-1]
         fromid= null toid=0     fromid=  toid=0             fromid= null toid=0         
-        will be brief on 12.3(monday)
         */
 
         if(i < pose_count){
             link_array.toId = i;
-            //response.Data.links[i].toId = i;
-            if(i > 0){
-               // response.Data.links[i-1].fromId = i-1; 
-            link_array.fromId = i-1;
+            if(i > 0){ 
+                link_array.fromId = i-1;
             }
-            response.Data.links.push_back(link_array);
-            
+            response.Data.links.push_back(link_array);      
        }
     }
 
     return true;
 }
-
-
 
 bool MapSave(ORB_SLAM2v2::MapSave::Request &req, ORB_SLAM2v2::MapSave::Response &response){
 
@@ -189,7 +177,6 @@ public:
         MapSaveSrv = nh.advertiseService("map_save", MapSave);
         MapLoadSrv = nh.advertiseService("map_load", MapLoad);
         
-
         br = _br;
 
         nh.param("publish_tf", publish_tf, publish_tf);
@@ -234,9 +221,6 @@ int main(int argc, char **argv)
 
     ORBParams params(publish_tf, publish_odom, mapping, build_octomap);
     
-    //strCurrentDr = string(params.getMapWorkingPath());
- 
-
     mapBinaryPath = strCurrentDr + mapBinaryPath;
     mapOctomapPath = strCurrentDr + mapOctomapPath;
     mapPCLPath = strCurrentDr + mapPCLPath;
@@ -250,7 +234,6 @@ int main(int argc, char **argv)
     params.setMapOctomapPath(mapOctomapPath.c_str());
     params.setMapPCLPath(mapPCLPath.c_str());
    
-    cout << "strCurrentDr : " << strCurrentDr << endl;
 
     string topic_rgb = "/camera/rgb/image_raw";
     string topic_depth = "/camera/depth/image";
@@ -362,7 +345,6 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
     
     tf::Transform transformCurrent = GetPoseFromWorld(pose);
    
-   
 
     br->sendTransform(tf::StampedTransform(transformCurrent, ros::Time::now(), "map", "base_link"));
 
@@ -384,18 +366,17 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
     odom_trans.header.frame_id = "odom";
     odom_trans.child_frame_id = "camera_link";
     br->sendTransform(odom_trans);
-*/
+    */
 
     //////////////////////////////////////////////////////
     ///                                                ///
     ///         /odom frame -> camera frame(pose)      ///
-    ///         date : 2018.11.26                      ///
+    ///             TF publish                         ///
     ///                                                ///
     //////////////////////////////////////////////////////
 
     // odom 
     cv::Mat pose_odom = mpSLAM->TrackPoseOdom();
-    //cout << "pose Odom" << poseOdom << endl;
     if (pose_odom.empty())    return;
     tf::Transform transformCurrent_odom = GetPoseFromWorld(pose_odom);
 
@@ -404,7 +385,7 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
     //////////////////////////////////////////////////////
     ///                                                ///
     ///         /odom frame -> /map frame              ///
-    ///                date : 2018.11.26               ///
+    ///                TF publish                      ///
     ///                                                ///
     //////////////////////////////////////////////////////
 
@@ -436,37 +417,30 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
     }
   
 
-    ///////////////////////////////////////////////////////////////
-    ////////////////////// Pose-graph               ///////////////
-    ///////////////  Date : 2018.11.27      ///////////////////////
-    ///////////////////////////////////////////////////////////////
+    //////////////////////////////////////////////////////
+    ///                                                ///
+    ///               Pose graph                       ///
+    ///               Type: ROS Topic                  ///  
+    ///               Base frame: map frame            ///
+    ///                                                ///
+    //////////////////////////////////////////////////////
 
     geometry_msgs::PoseArray aPoseArray;
-
     vector<cv::Mat> TcwArray = mpSLAM->GetPoseArray();
-    
     geometry_msgs::Pose posetmp;
 
     for(size_t i=0; i<TcwArray.size(); i++)
     {
-        tf::Transform tfPoseArray= GetPoseFromWorld(TcwArray[i]);
-
-        geometry_msgs::Pose PoseArrayTmp;
-        
-        tf::poseTFToMsg(tfPoseArray, PoseArrayTmp);
-
+       tf::Transform tfPoseArray= GetPoseFromWorld(TcwArray[i]);
+       geometry_msgs::Pose PoseArrayTmp;
+       tf::poseTFToMsg(tfPoseArray, PoseArrayTmp);
        aPoseArray.poses.push_back(PoseArrayTmp);
       
-       
-        
     }
 
     // define header
     aPoseArray.header.stamp = ros::Time::now();
     aPoseArray.header.frame_id = "/map";
-   // mMapGraph.header.stamp = ros::Time::now();
-   // mMapGraph.header.frame_id = "/map";
-    // Get aPoseArray value
 
     copied_pose_array = aPoseArray;
     poseArrayPub.publish(aPoseArray);
@@ -474,9 +448,9 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
 
     //////////////////////////////////////////////////////
     ///                                                ///
-    ///         /visual Odometry                      ///
-    ///                date : 2018.11.26               ///
-    ///                                                ///
+    ///         /visual Odometry                       ///
+    ///          type : ROS Topic                      ///
+    ///          Only position contents is filled      ///
     //////////////////////////////////////////////////////
 
     nav_msgs::Odometry VisualOdometry;
@@ -504,13 +478,14 @@ void ImageGrabber::GrabRGBD(const sensor_msgs::ImageConstPtr& msgRGB,const senso
 	}
     ////////////////////////////////////////////////////////
 
-
+    // service(map save,load) call back funtion
     this->ServiceSaveMapCallback();
     this->ServiceLoadMapCallback();
 
 }
 
 
+// transforms camera pose into right handed frame function
 tf::Transform GetPoseFromWorld(cv::Mat pose){
    //Quaternion
     tf::Matrix3x3 tf3d;

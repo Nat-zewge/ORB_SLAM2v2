@@ -106,6 +106,23 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
         mpMap = new Map();
     }
 
+    /////////////////////////////////////////
+    // ROS Param : mapping
+    // type : bool
+    // bReuseMap = false, SLAM mode
+    // bReuseMap = true, localization mode
+    /////////////////////////////////////////
+
+    bool bMappingMode = params.getMapping();
+
+    if(bMappingMode){
+        bReuseMap = false;
+    }
+    else{
+        bReuseMap = true;
+    }
+
+
     //Create Drawers. These are used by the Viewer
     mpFrameDrawer = new FrameDrawer(mpMap, bReuseMap);
     mpMapDrawer = new MapDrawer(mpMap, strSettingsFile);
@@ -451,6 +468,7 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const doub
     if(mbReset)
     {
         mpTracker->Reset();
+        mpPointCloudMapping->Reset(); // reset PCL
         mbReset = false;
     }
     }
@@ -744,10 +762,8 @@ void System::SaveTrajectoryKITTI(const string &filename)
 
 std::vector<cv::Mat> System::GetPoseArray()
 {
-   // cout << endl << "Get PoseArray" << endl;
     // get keyframe array
     // extract pose array from key frame pose array
-    
   
     vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
     sort(vpKFs.begin(),vpKFs.end(),KeyFrame::lId);
@@ -757,28 +773,17 @@ std::vector<cv::Mat> System::GetPoseArray()
     for(size_t i=0; i<vpKFs.size(); i++)
     {
         KeyFrame* pKF = vpKFs[i];
-
-       // pKF->SetPose(pKF->GetPose()*Two);
-
         if(pKF->isBad())
             continue;
 
-/*
-        cv::Mat R = pKF->GetRotation().t();
-        vector<float> q = Converter::toQuaternion(R);
-        cv::Mat t = pKF->GetCameraCenter();
-  */
             Tcw.push_back(pKF->GetPose().clone());
-
 
         // put pose value on PoseArray
     }
-
     // return pose array
     return Tcw;
 }
  
-
 
 int System::GetTrackingState()
 {
@@ -803,9 +808,6 @@ void System::SaveMap(const string &filename)
     
     cout << "save binary map" << endl;
 
-    //sting mapOctomapPath = pwd + "/" + filename + ".bt";
-    //sting mapPCLPath = pwd + "/" + filename + ".pcd";
-
     if(filename.length() > 0){
         mapfile = filename;
     }
@@ -821,13 +823,13 @@ void System::SaveMap(const string &filename)
 
 
     mpLoopCloser->ReadyForMemoryConnect = true;
-    mpLocalMapper->ReadyForMemoryConnect = true;
-    while(!(mpLoopCloser->WaitForMemoryConnect&&mpLocalMapper->WaitForMemoryConnect)){
+    // mpLocalMapper->ReadyForMemoryConnect = true;
+    while(!(mpLoopCloser->WaitForMemoryConnect)){
         std::this_thread::sleep_for(std::chrono::microseconds(2000));
     }
 
     {
-        //unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
+        unique_lock<mutex> lock(mpMap->mMutexMapUpdate);
         cout << "Saving Mapfile: " << mapfile << std::flush;
         std::this_thread::sleep_for(std::chrono::microseconds(2000));
         boost::archive::binary_oarchive oa(out, boost::archive::no_header);
@@ -840,15 +842,23 @@ void System::SaveMap(const string &filename)
     std:string cmd = "cp "+mapfile+" "+mapfile+".copy";
     int ld = system(cmd.c_str());
 
-    mpPointCloudMapping->saveOctomap();
+    /////////////////////////////
+    // build octomap 
+    // ROS Param : build_octomap
+    // type : bool 
+    /////////////////////////////
+    bool bBuildOctomap = mParams.getBuildOctomap();
+
+    if(bBuildOctomap){
+        mpPointCloudMapping->saveOctomap();
+    }
         
     mpLoopCloser->WaitForMemoryConnect = false;
-    mpLocalMapper->WaitForMemoryConnect = false;
+    //mpLocalMapper->WaitForMemoryConnect = false;
 
 }
 bool System::LoadMap(const string &filename)
 {
-    cout << "4" << filename <<endl;
     std::ifstream in(filename, std::ios_base::binary);
     if (!in)
     {
@@ -895,9 +905,11 @@ bool System::LoadMap(){
 
     cout << "Loading Mapfile" << std::flush;
     mpLoopCloser->ReadyForMemoryConnect = true;
-    mpLocalMapper->ReadyForMemoryConnect = true;
-    while(!(mpLoopCloser->WaitForMemoryConnect&&mpLocalMapper->WaitForMemoryConnect)){
-        std::this_thread::sleep_for(std::chrono::microseconds(2000));
+    //mpLocalMapper->ReadyForMemoryConnect = true;
+    mpLocalMapper->RequestStop();
+    while(!(mpLoopCloser->WaitForMemoryConnect && mpLocalMapper->isStopped())){
+        cout << "Please wait for a while"<< endl;
+        std::this_thread::sleep_for(std::chrono::microseconds(1000));
     }
 
     boost::archive::binary_iarchive ia(in, boost::archive::no_header);
@@ -930,7 +942,8 @@ bool System::LoadMap(){
     delete oldMap;
 
     mpLoopCloser->WaitForMemoryConnect = false;
-    mpLocalMapper->WaitForMemoryConnect = false;
+    //mpLocalMapper->WaitForMemoryConnect = false;
+    mpLocalMapper->Release();
     ConnectMemory = 0;
 
     return true;
@@ -954,8 +967,10 @@ bool System::ServiceLoadMap(const string &filename)
 
     cout << "Loading Mapfile" << std::flush;
     mpLoopCloser->ReadyForMemoryConnect = true;
-    mpLocalMapper->ReadyForMemoryConnect = true;
-    while(!(mpLoopCloser->WaitForMemoryConnect&&mpLocalMapper->WaitForMemoryConnect)){
+    mpLocalMapper->RequestStop();
+    //mpLocalMapper->ReadyForMemoryConnect = true;
+    while(!(mpLoopCloser->WaitForMemoryConnect && mpLocalMapper->isStopped())){
+        cout << "Please wait for a while"<< endl;
         std::this_thread::sleep_for(std::chrono::microseconds(2000));
     }
 
@@ -989,7 +1004,8 @@ bool System::ServiceLoadMap(const string &filename)
     delete oldMap;
 
     mpLoopCloser->WaitForMemoryConnect = false;
-    mpLocalMapper->WaitForMemoryConnect = false;
+    //mpLocalMapper->WaitForMemoryConnect = false;
+    mpLocalMapper->Release();
     ConnectMemory = 0;
     
     return true;
