@@ -119,11 +119,13 @@ void PointCloudMapping::saveOctomap()
     for(size_t i=0;i<keyframes.size();i++)// save the optimized pointcloud
     {
         //cout<<"keyframe "<<i<<" ..."<<endl;
-        PointCloud::Ptr tp = generatePointCloud( keyframes[i], colorImgs[i], depthImgs[i] );
-        PointCloud::Ptr tmp(new PointCloud());
-        voxel.setInputCloud( tp );
-        voxel.filter( *tmp );
-        *globalMap += *tmp;
+        if(keyframes[i]->deleted == false){
+            PointCloud::Ptr tp = generatePointCloud( keyframes[i], colorImgs[i], depthImgs[i] );
+            PointCloud::Ptr tmp(new PointCloud());
+            voxel.setInputCloud( tp );
+            voxel.filter( *tmp );
+            *globalMap += *tmp;
+        }
     }
     //PointCloud::Ptr tmp(new PointCloud());
     //sor.setInputCloud(globalMap);
@@ -134,14 +136,6 @@ void PointCloudMapping::saveOctomap()
     /***********************************************************/
     //pcl::PointCloud<pcl::PointXYZRGBA> cloudt;
     //pcl::io::loadPCDFile<pcl::PointXYZRGBA> ( "optimized_pointcloud.pcd", cloudt );
-
-    ifstream ifs(pcl_name);
-
-    if(ifs.is_open()){
-        ifs.close();
-        pcl::io::loadPCDFile<pcl::PointXYZRGBA> ( pcl_name, loadedCloud);
-        *globalMap += loadedCloud;
-    }
 
     pcl::io::savePCDFileBinary ( pcl_name, *globalMap );
     cout<<"Save point cloud file successfully!"<<endl;

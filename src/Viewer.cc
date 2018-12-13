@@ -196,7 +196,7 @@ void Viewer::Run()
 
             menuLoad = false;
             mbServiceMapLoad = false;
-            
+            mstrfilename = "";
         }
 
         if(Stop())
