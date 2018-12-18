@@ -38,7 +38,7 @@ namespace ORB_SLAM2
 LoopClosing::LoopClosing(Map *pMap, KeyFrameDatabase *pDB, ORBVocabulary *pVoc, const bool bFixScale):
     mbResetRequested(false), mbFinishRequested(false), mbFinished(true), mpMap(pMap),
     mpKeyFrameDB(pDB), mpORBVocabulary(pVoc), mpMatchedKF(NULL), mLastLoopKFid(0), mbRunningGBA(false), mbFinishedGBA(true),
-    mbStopGBA(false), mpThreadGBA(NULL), mbFixScale(bFixScale), mnFullBAIdx(0)
+    mbStopGBA(false), mpThreadGBA(NULL), mbFixScale(bFixScale), mnFullBAIdx(0), ReadyForMemoryConnect(false), WaitForMemoryConnect(false)
 {
     mnCovisibilityConsistencyTh = 3;
 }
@@ -60,6 +60,16 @@ void LoopClosing::Run()
 
     while(1)
     {
+        if(ReadyForMemoryConnect){
+            if(mpThreadGBA){
+                mpThreadGBA->join();
+            }
+            WaitForMemoryConnect = true;
+            while(WaitForMemoryConnect){
+                std::this_thread::sleep_for(std::chrono::microseconds(2000));
+            }
+            ReadyForMemoryConnect = false;
+        }
         // Check if there are keyframes in the queue
         if(CheckNewKeyFrames())
         {

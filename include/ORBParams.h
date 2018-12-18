@@ -18,6 +18,7 @@ public:
     void setBuildOctomap(bool b);
     void setMapBinaryPath(const char* m);
     void setMapOctomapPath(const char* m);
+    void setMapWorkingPath(const char* m);
     void setMapPCLPath(const char* m);
 
     bool getPublishTf();
@@ -26,6 +27,7 @@ public:
     bool getBuildOctomap();
     const char* getMapBinaryPath();
     const char* getMapOctomapPath();
+    const char* getMapWorkingPath();
     const char* getMapPCLPath();
 
 private:
@@ -35,6 +37,7 @@ private:
     bool build_octomap;
     const char* mapBinaryPath;
     const char* mapOctomapPath;
+    const char* mapWorkingPath;
     const char* mapPCLPath;
 };
 

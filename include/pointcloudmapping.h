@@ -41,11 +41,15 @@ public:
     
     PointCloudMapping( double resolution_ );
     
+    // Set file names
+
+    void setFileNames(const char *pcl, const char *oct);
     // Insert a keyframe，update the map
     void insertKeyFrame( KeyFrame* kf, cv::Mat& color, cv::Mat& depth );
     void shutdown();
     void viewer();
     void saveOctomap();
+    void saveOctomapThread();
     void Reset();
     
 protected:
@@ -70,6 +74,9 @@ protected:
     double resolution = 0.1;//
     pcl::VoxelGrid<PointT>  voxel;
     pcl::StatisticalOutlierRemoval<PointT> sor;//creator a filter object
+
+    string pcl_name;
+    string oct_name;
 };
 
 #endif // POINTCLOUDMAPPING_H

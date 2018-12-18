@@ -74,6 +74,9 @@ public:
 
     void getMap(Map *pMap);
 
+    bool WaitForMemoryConnect;
+    bool ReadyForMemoryConnect;
+
 protected:
 
     bool CheckNewKeyFrames();
@@ -123,6 +126,7 @@ protected:
 
     bool mbAcceptKeyFrames;
     std::mutex mMutexAccept;
+    bool bServiceMapLoad;
 };
 
 } //namespace ORB_SLAM

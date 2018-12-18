@@ -30,7 +30,7 @@ namespace ORB_SLAM2
 
 LocalMapping::LocalMapping(Map *pMap, const float bMonocular):
     mbMonocular(bMonocular), mbResetRequested(false), mbFinishRequested(false), mbFinished(true), mpMap(pMap),
-    mbAbortBA(false), mbStopped(false), mbStopRequested(false), mbNotStop(false), mbAcceptKeyFrames(true)
+    mbAbortBA(false), mbStopped(false), mbStopRequested(false), mbNotStop(false), mbAcceptKeyFrames(true), ReadyForMemoryConnect(false), WaitForMemoryConnect(false)
 {
 }
 
@@ -51,6 +51,17 @@ void LocalMapping::Run()
 
     while(1)
     {
+        /*
+        if(ReadyForMemoryConnect){
+            WaitForMemoryConnect = true;
+            while(WaitForMemoryConnect){
+                std::this_thread::sleep_for(std::chrono::microseconds(2000));
+            }
+            ReadyForMemoryConnect = false;
+        }
+        */
+
+       
         // Tracking will see that Local Mapping is busy
         SetAcceptKeyFrames(false);
 

@@ -36,7 +36,7 @@ namespace ORB_SLAM2
 {
 
 System::System(const string &strVocFile, const string &strSettingsFile, const eSensor sensor, ORBParams &params,
-               const bool bUseViewer):mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false),
+               const bool bUseViewer):mSensor(sensor), mpViewer(static_cast<Viewer*>(NULL)), mbReset(false), ConnectMemory(0),
         mbActivateLocalizationMode(false), mbDeactivateLocalizationMode(false), mParams(params), mbRequestMapSave(false), mbSaveImages(false), mbRequestMapLoad(false)
 {
     // Output welcome message
@@ -47,7 +47,6 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     "under certain conditions. See LICENSE.txt." << endl << endl;
 
     cout << "Input sensor was set to: ";
-
     if(mSensor==MONOCULAR)
         cout << "Monocular" << endl;
     else if(mSensor==STEREO)
@@ -93,7 +92,7 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     cout << "Vocabulary loaded!" << endl << endl;
 
     mpPointCloudMapping = make_shared<PointCloudMapping>(0.1);//PCL,OctoMap
-
+    mpPointCloudMapping->setFileNames(params.getMapPCLPath(), params.getMapOctomapPath());
     //Create KeyFrame Database
     //Create the Map
     if (!mapfile.empty() && LoadMap(mapfile))
@@ -105,6 +104,23 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
         mpKeyFrameDatabase = new KeyFrameDatabase(mpVocabulary);
         mpMap = new Map();
     }
+
+    /////////////////////////////////////////
+    // ROS Param : mapping
+    // type : bool
+    // bReuseMap = false, SLAM mode
+    // bReuseMap = true, localization mode
+    /////////////////////////////////////////
+
+    bool bMappingMode = params.getMapping();
+
+    if(bMappingMode){
+        bReuseMap = false;
+    }
+    else{
+        bReuseMap = true;
+    }
+
 
     //Create Drawers. These are used by the Viewer
     mpFrameDrawer = new FrameDrawer(mpMap, bReuseMap);
@@ -157,7 +173,6 @@ System::System(const string &strVocFile, const string &strSettingsFile, const eS
     "under certain conditions. See LICENSE.txt." << endl << endl;
 
     cout << "Input sensor was set to: ";
-
     if(mSensor==MONOCULAR)
         cout << "Monocular" << endl;
     else if(mSensor==STEREO)
@@ -265,7 +280,6 @@ mSensor(sensor), is_save_map(is_save_map_), mpViewer(static_cast<Viewer*>(NULL))
     "under certain conditions. See LICENSE.txt." << endl << endl;
 
     cout << "Input sensor was set to: ";
-
     if(mSensor==MONOCULAR)
         cout << "Monocular" << endl;
     else if(mSensor==STEREO)
@@ -451,6 +465,7 @@ cv::Mat System::TrackRGBD(const cv::Mat &im, const cv::Mat &depthmap, const doub
     if(mbReset)
     {
         mpTracker->Reset();
+        mpPointCloudMapping->Reset(); // reset PCL
         mbReset = false;
     }
     }
@@ -583,8 +598,10 @@ void System::Shutdown()
     }
     if(mpViewer)
         pangolin::BindToContext("ORB-SLAM2: Map Viewer");
-    if (is_save_map)
-        SaveMap(mapfile);
+    
+    //if (is_save_map)
+    //    SaveMap(mapfile);
+
 }
 
 void System::SaveTrajectoryTUM(const string &filename)
@@ -742,10 +759,8 @@ void System::SaveTrajectoryKITTI(const string &filename)
 
 std::vector<cv::Mat> System::GetPoseArray()
 {
-   // cout << endl << "Get PoseArray" << endl;
     // get keyframe array
     // extract pose array from key frame pose array
-    
   
     vector<KeyFrame*> vpKFs = mpMap->GetAllKeyFrames();
     sort(vpKFs.begin(),vpKFs.end(),KeyFrame::lId);
@@ -755,28 +770,17 @@ std::vector<cv::Mat> System::GetPoseArray()
     for(size_t i=0; i<vpKFs.size(); i++)
     {
         KeyFrame* pKF = vpKFs[i];
-
-       // pKF->SetPose(pKF->GetPose()*Two);
-
         if(pKF->isBad())
             continue;
 
-/*
-        cv::Mat R = pKF->GetRotation().t();
-        vector<float> q = Converter::toQuaternion(R);
-        cv::Mat t = pKF->GetCameraCenter();
-  */
             Tcw.push_back(pKF->GetPose().clone());
-
 
         // put pose value on PoseArray
     }
-
     // return pose array
     return Tcw;
 }
  
-
 
 int System::GetTrackingState()
 {
@@ -801,9 +805,6 @@ void System::SaveMap(const string &filename)
     
     cout << "save binary map" << endl;
 
-    //sting mapOctomapPath = pwd + "/" + filename + ".bt";
-    //sting mapPCLPath = pwd + "/" + filename + ".pcd";
-
     if(filename.length() > 0){
         mapfile = filename;
     }
@@ -815,6 +816,13 @@ void System::SaveMap(const string &filename)
     {
         cerr << "Cannot Write to Mapfile: " << mapfile << std::endl;
         exit(-1);
+    }
+
+
+    mpLoopCloser->ReadyForMemoryConnect = true;
+    // mpLocalMapper->ReadyForMemoryConnect = true;
+    while(!(mpLoopCloser->WaitForMemoryConnect)){
+        std::this_thread::sleep_for(std::chrono::microseconds(2000));
     }
 
     {
@@ -831,21 +839,36 @@ void System::SaveMap(const string &filename)
     std:string cmd = "cp "+mapfile+" "+mapfile+".copy";
     int ld = system(cmd.c_str());
 
+    /////////////////////////////
+    // build octomap 
+    // ROS Param : build_octomap
+    // type : bool 
+    /////////////////////////////
+    bool bBuildOctomap = mParams.getBuildOctomap();
+
+    if(bBuildOctomap){
+        mpPointCloudMapping->saveOctomap();
+    }
+        
+    mpLoopCloser->WaitForMemoryConnect = false;
+    //mpLocalMapper->WaitForMemoryConnect = false;
 
 }
 bool System::LoadMap(const string &filename)
 {
-    cout << "4" << filename <<endl;
     std::ifstream in(filename, std::ios_base::binary);
     if (!in)
     {
         cerr << "Cannot Open Mapfile: " << filename << " , You need create it first!" << std::endl;
         return false;
     }
-    cout << "Loading Mapfile: " << filename << std::flush;
-    boost::archive::binary_iarchive ia(in, boost::archive::no_header);
-    ia >> mpMap;
-    ia >> mpKeyFrameDatabase;
+    {
+        cout << "Loading Mapfile: " << filename << std::flush;
+        std::this_thread::sleep_for(std::chrono::microseconds(2000));
+        boost::archive::binary_iarchive ia(in, boost::archive::no_header);
+        ia >> mpMap;
+        ia >> mpKeyFrameDatabase;
+    }
     mpKeyFrameDatabase->SetORBvocabulary(mpVocabulary);
     cout << " ...done" << std::endl;
     cout << "Map Reconstructing" << flush;
@@ -877,6 +900,15 @@ bool System::LoadMap(){
         return false;
     }
 
+    cout << "Loading Mapfile" << std::flush;
+    mpLoopCloser->ReadyForMemoryConnect = true;
+    //mpLocalMapper->ReadyForMemoryConnect = true;
+    mpLocalMapper->RequestStop();
+    while(!(mpLoopCloser->WaitForMemoryConnect && mpLocalMapper->isStopped())){
+        cout << "Please wait for a while"<< endl;
+        std::this_thread::sleep_for(std::chrono::microseconds(1000));
+    }
+
     boost::archive::binary_iarchive ia(in, boost::archive::no_header);
     ia >> mpMap;
     ia >> mpKeyFrameDatabase;
@@ -906,18 +938,23 @@ bool System::LoadMap(){
 
     delete oldMap;
 
+    mpLoopCloser->WaitForMemoryConnect = false;
+    //mpLocalMapper->WaitForMemoryConnect = false;
+    mpLocalMapper->Release();
+    ConnectMemory = 0;
+
     return true;
 }
 bool System::ServiceLoadMap(const string &filename)
 {
-    std::ifstream in(filename, std::ios_base::binary);
     Map* oldMap = mpMap;
+    cout << "file name in serviceloadmap : " << filename << endl;
     {
         unique_lock<mutex> lock(mMutexReset);
         mpPointCloudMapping->Reset();//PCL
-         std::this_thread::sleep_for(std::chrono::microseconds(2000));
     }
-    mpMap->clear();
+    std::ifstream in(filename, std::ios_base::binary);
+    //mpMap->clear();
 
     if (!in)
     {
@@ -925,6 +962,15 @@ bool System::ServiceLoadMap(const string &filename)
         return false;
     }
 
+    cout << "Loading Mapfile" << std::flush;
+    mpLoopCloser->ReadyForMemoryConnect = true;
+    mpLocalMapper->RequestStop();
+    //mpLocalMapper->ReadyForMemoryConnect = true;
+    while(!(mpLoopCloser->WaitForMemoryConnect && mpLocalMapper->isStopped())){
+        cout << "Please wait for a while"<< endl;
+        std::this_thread::sleep_for(std::chrono::microseconds(1000));
+    }
+
     boost::archive::binary_iarchive ia(in, boost::archive::no_header);
     ia >> mpMap;
     ia >> mpKeyFrameDatabase;
@@ -940,20 +986,23 @@ bool System::ServiceLoadMap(const string &filename)
         if (it->mnFrameId > mnFrameId)
             mnFrameId = it->mnFrameId;
     }
+
     Frame::nNextId = mnFrameId;
 
     cout << " ...done" << endl;
     in.close();
-    
     mpFrameDrawer->getMap(mpMap);
     mpMapDrawer->getMap(mpMap);
     mpTracker->getMap(mpMap);
     mpLocalMapper->getMap(mpMap);
     mpLoopCloser->getMap(mpMap);
-    
 
     delete oldMap;
 
+    mpLoopCloser->WaitForMemoryConnect = false;
+    //mpLocalMapper->WaitForMemoryConnect = false;
+    mpLocalMapper->Release();
+    ConnectMemory = 0;
     return true;
 }
 
@@ -962,6 +1011,11 @@ void System::RequestSaveMap(){
 }
 void System::RequestLoadMap(){
     mbRequestMapLoad = true;
+}
+
+void System::RequestServiceLoadMap(string filename){
+
+   mpViewer->setServiceLoadedMap(filename);
 }
 
 

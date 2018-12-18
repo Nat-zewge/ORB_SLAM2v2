@@ -528,7 +528,7 @@ void Tracking::Track()
         //////////////////////////////////////////////////////
         ///                                                ///
         ///         // pose - /odom frame                  ///
-        ///             date:2018.11.26                    ///
+        ///                                                ///
         ///                                                ///
         //////////////////////////////////////////////////////
 
@@ -540,8 +540,8 @@ void Tracking::Track()
             // initialize last and current frame value
             if(!mCurrentFrame.mTcw.empty() && !mLastFrame.mTcw.empty())
             {
-               mPosefromOdomFrame.SetPose(mCurrentFrame.mTcw);
-              mLastPosefromOdomFrame.SetPose(mLastFrame.mTcw); // 
+                mPosefromOdomFrame.SetPose(mCurrentFrame.mTcw);
+                mLastPosefromOdomFrame.SetPose(mLastFrame.mTcw); 
             }
 
         }
@@ -552,7 +552,7 @@ void Tracking::Track()
             mPoseDiff.SetPose(mLastFrame.mTcw * mCurrentFrame.mTwc);
             mPosefromOdomFrame.SetPose(mPoseDiff.mTwc * mLastPosefromOdomFrame.mTcw);
             // accumulate currrent frame
-            mLastPosefromOdomFrame.SetPose(mPosefromOdomFrame.mTcw); // 
+            mLastPosefromOdomFrame.SetPose(mPosefromOdomFrame.mTcw); 
         }
 
 
