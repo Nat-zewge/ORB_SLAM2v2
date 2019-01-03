@@ -161,7 +161,6 @@ private:
 
     string mapfile;
     bool is_save_map;
-
     // Tracker. It receives a frame and computes the associated camera pose.
     // It also decides when to insert a new keyframe, create some new MapPoints and
     // performs relocalization if tracking fails.

@@ -847,6 +847,7 @@ void System::SaveMap(const string &filename)
     bool bBuildOctomap = mParams.getBuildOctomap();
 
     if(bBuildOctomap){
+        mpPointCloudMapping->SetOctomapFileName(mapfile);
         mpPointCloudMapping->saveOctomap();
     }
         

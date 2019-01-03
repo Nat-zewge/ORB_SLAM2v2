@@ -113,6 +113,17 @@ pcl::PointCloud< PointCloudMapping::PointT >::Ptr PointCloudMapping::generatePoi
 }
 
 
+void PointCloudMapping::SetOctomapFileName(string filename)
+{
+    int location = filename.find(".bin");
+    filename.erase(location,4);
+    filename.append(".bt");
+    octomap_filename = filename;
+    
+}
+
+
+
 void PointCloudMapping::saveOctomap()
 {
     pcl::PointCloud<pcl::PointXYZRGBA> loadedCloud;
@@ -239,7 +250,9 @@ void PointCloudMapping::saveOctomap()
     // update octomap
     tree.updateInnerOccupancy();
     // save octomap
-    tree.writeBinary(oct_name);
+    //tree.writeBinary(oct_name);
+    cout << "octomap save path : "<<octomap_filename <<endl;
+    tree.writeBinary(octomap_filename);
     cout<<"save octomap ... done."<<endl;
 
 }
